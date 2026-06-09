@@ -24,7 +24,6 @@ class _ResultScreenState extends State<ResultScreen> {
   int _carbs = 0;
   int _protein = 0;
   int _fat = 0;
-  bool _editing = false;
 
   final _calCtrl = TextEditingController();
   final _carbsCtrl = TextEditingController();
@@ -59,14 +58,32 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _selectedMeal = detected);
   }
 
-  void _applyEdit() {
-    setState(() {
-      _calories = int.tryParse(_calCtrl.text) ?? _calories;
-      _carbs = int.tryParse(_carbsCtrl.text) ?? _carbs;
-      _protein = int.tryParse(_proteinCtrl.text) ?? _protein;
-      _fat = int.tryParse(_fatCtrl.text) ?? _fat;
-      _editing = false;
-    });
+  void _showEditDialog(String label, TextEditingController ctrl, void Function(int) onSave) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$label 수정'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: InputDecoration(
+            suffixText: label == '칼로리' ? 'kcal' : 'g',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          FilledButton(
+            onPressed: () {
+              onSave(int.tryParse(ctrl.text) ?? 0);
+              Navigator.pop(ctx);
+            },
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -91,19 +108,18 @@ class _ResultScreenState extends State<ResultScreen> {
                 children: [
                   Text(result.foodName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  // 1인분 칼로리 (메인) — 수정 가능
-                  _editing
-                    ? SizedBox(
-                        width: 120,
-                        child: TextField(
-                          controller: _calCtrl,
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary),
-                          decoration: const InputDecoration(suffixText: 'kcal', border: UnderlineInputBorder()),
-                        ),
-                      )
-                    : Text('1인분 약 $_calories kcal', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                  // 1인분 칼로리 — 탭하면 수정
+                  GestureDetector(
+                    onTap: () => _showEditDialog('칼로리', _calCtrl, (v) => setState(() => _calories = v)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('1인분 약 $_calories kcal', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit, size: 14, color: AppColors.textHint),
+                      ],
+                    ),
+                  ),
                   // 1인분 기준 설명
                   if (result.servingInfo.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -141,44 +157,24 @@ class _ResultScreenState extends State<ResultScreen> {
                     children: [
                       const Text('영양성분', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       const Spacer(),
-                      GestureDetector(
-                        onTap: () {
-                          if (_editing) {
-                            _applyEdit();
-                          } else {
-                            setState(() => _editing = true);
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _editing ? AppColors.primary : AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _editing ? '완료' : '수정',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _editing ? Colors.white : AppColors.primary),
-                          ),
-                        ),
-                      ),
+                      const Text('탭하여 수정', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _editing
-                    ? Column(children: [
-                        _editRow('탄수화물', _carbsCtrl, AppColors.carbs),
-                        const SizedBox(height: 8),
-                        _editRow('단백질', _proteinCtrl, AppColors.protein),
-                        const SizedBox(height: 8),
-                        _editRow('지방', _fatCtrl, AppColors.fat),
-                      ])
-                    : Column(children: [
-                        NutrientBar(label: '탄수화물', value: _carbs, max: 150, color: AppColors.carbs, unit: 'g'),
-                        const SizedBox(height: 12),
-                        NutrientBar(label: '단백질', value: _protein, max: 80, color: AppColors.protein, unit: 'g'),
-                        const SizedBox(height: 12),
-                        NutrientBar(label: '지방', value: _fat, max: 70, color: AppColors.fat, unit: 'g'),
-                      ]),
+                  GestureDetector(
+                    onTap: () => _showEditDialog('탄수화물', _carbsCtrl, (v) => setState(() => _carbs = v)),
+                    child: NutrientBar(label: '탄수화물', value: _carbs, max: 150, color: AppColors.carbs, unit: 'g'),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => _showEditDialog('단백질', _proteinCtrl, (v) => setState(() => _protein = v)),
+                    child: NutrientBar(label: '단백질', value: _protein, max: 80, color: AppColors.protein, unit: 'g'),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => _showEditDialog('지방', _fatCtrl, (v) => setState(() => _fat = v)),
+                    child: NutrientBar(label: '지방', value: _fat, max: 70, color: AppColors.fat, unit: 'g'),
+                  ),
                 ],
               ),
             ),
@@ -262,28 +258,6 @@ class _ResultScreenState extends State<ResultScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _editRow(String label, TextEditingController ctrl, Color color) {
-    return Row(
-      children: [
-        SizedBox(width: 60, child: Text(label, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600))),
-        const SizedBox(width: 8),
-        Expanded(
-          child: TextField(
-            controller: ctrl,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 14),
-            decoration: InputDecoration(
-              suffixText: 'g',
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
