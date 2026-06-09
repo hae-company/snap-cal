@@ -17,7 +17,19 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _pick(ImageSource source) async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, maxWidth: 1024, imageQuality: 85);
+    XFile? picked;
+    try {
+      picked = await picker.pickImage(source: source, maxWidth: 1024, imageQuality: 85);
+    } catch (e) {
+      // 카메라 사용 불가 (시뮬레이터 등) → 갤러리로 전환
+      if (source == ImageSource.camera) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('카메라를 사용할 수 없어요. 갤러리에서 선택해주세요.')),
+        );
+        picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
+      }
+    }
     if (picked == null) return;
 
     final apiKey = await PrefsService.getApiKey();
@@ -41,7 +53,7 @@ class _CameraScreenState extends State<CameraScreen> {
         );
       } else {
         Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ResultScreen(result: result, imagePath: picked.path),
+          builder: (_) => ResultScreen(result: result, imagePath: picked!.path),
         ));
       }
     } catch (e) {
