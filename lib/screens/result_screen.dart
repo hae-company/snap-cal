@@ -20,16 +20,16 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   String _selectedMeal = MealType.snack;
-  late int _calories;
-  late int _carbs;
-  late int _protein;
-  late int _fat;
+  int _calories = 0;
+  int _carbs = 0;
+  int _protein = 0;
+  int _fat = 0;
   bool _editing = false;
 
-  late final TextEditingController _calCtrl;
-  late final TextEditingController _carbsCtrl;
-  late final TextEditingController _proteinCtrl;
-  late final TextEditingController _fatCtrl;
+  final _calCtrl = TextEditingController();
+  final _carbsCtrl = TextEditingController();
+  final _proteinCtrl = TextEditingController();
+  final _fatCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -38,10 +38,10 @@ class _ResultScreenState extends State<ResultScreen> {
     _carbs = widget.result.carbs;
     _protein = widget.result.protein;
     _fat = widget.result.fat;
-    _calCtrl = TextEditingController(text: '$_calories');
-    _carbsCtrl = TextEditingController(text: '$_carbs');
-    _proteinCtrl = TextEditingController(text: '$_protein');
-    _fatCtrl = TextEditingController(text: '$_fat');
+    _calCtrl.text = '$_calories';
+    _carbsCtrl.text = '$_carbs';
+    _proteinCtrl.text = '$_protein';
+    _fatCtrl.text = '$_fat';
     _detectMeal();
   }
 
