@@ -67,7 +67,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 children: [
                   const Text('SnapCal', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary)),
                   const Spacer(),
-                  Text(DateFormat('yyyy.MM').format(_focused), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: AppColors.textSecondary),
+                    onPressed: () {
+                      setState(() => _focused = DateTime(_focused.year, _focused.month - 1));
+                      _load();
+                    },
+                  ),
+                  Text(DateFormat('yyyy.MM').format(_focused), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                    onPressed: () {
+                      setState(() => _focused = DateTime(_focused.year, _focused.month + 1));
+                      _load();
+                    },
+                  ),
                 ],
               ),
             ),
