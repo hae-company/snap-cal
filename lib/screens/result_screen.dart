@@ -4,30 +4,49 @@ import 'package:intl/intl.dart';
 import '../models/analysis_result.dart';
 import '../models/food_record.dart';
 import '../services/database_service.dart';
+import '../services/prefs_service.dart';
 import '../utils/constants.dart';
 import '../widgets/nutrient_bar.dart';
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final AnalysisResult result;
   final String imagePath;
 
   const ResultScreen({super.key, required this.result, required this.imagePath});
 
   @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  String _selectedMeal = MealType.snack;
+
+  @override
+  void initState() {
+    super.initState();
+    _detectMeal();
+  }
+
+  Future<void> _detectMeal() async {
+    final detected = await PrefsService.autoDetectMealType();
+    setState(() => _selectedMeal = detected);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final result = widget.result;
+
     return Scaffold(
       appBar: AppBar(title: const Text('AI 분석 결과')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Image
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.file(File(imagePath), height: 220, width: double.infinity, fit: BoxFit.cover),
+            child: Image.file(File(widget.imagePath), height: 220, width: double.infinity, fit: BoxFit.cover),
           ),
           const SizedBox(height: 20),
 
-          // Food name + calories
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -49,7 +68,6 @@ class ResultScreen extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Nutrients
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -70,14 +88,53 @@ class ResultScreen extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // Meal type selector
-          const Text('어떤 식사로 기록할까요?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [MealType.breakfast, MealType.lunch, MealType.dinner, MealType.snack]
-                .map((type) => _mealButton(context, type))
-                .toList(),
+          // 자동 감지된 식사 + 수동 변경
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${MealType.emoji(_selectedMeal)} ${MealType.label(_selectedMeal)}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('자동', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [MealType.breakfast, MealType.lunch, MealType.dinner, MealType.snack]
+                        .map((type) => _mealChip(type))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => _save(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('기록하기', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
 
           const SizedBox(height: 40),
@@ -86,13 +143,37 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
+  Widget _mealChip(String type) {
+    final selected = _selectedMeal == type;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMeal = type),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.primaryLight,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(MealType.emoji(type), style: const TextStyle(fontSize: 20)),
+            const SizedBox(height: 2),
+            Text(
+              MealType.label(type),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: selected ? Colors.white : AppColors.textPrimary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _confidenceBadge() {
+    final result = widget.result;
     final color = result.confidence == 'high' ? AppColors.primary
         : result.confidence == 'medium' ? Colors.orange
         : AppColors.danger;
     final label = result.confidence == 'high' ? '높음'
-        : result.confidence == 'medium' ? '보통'
-        : '낮음';
+        : result.confidence == 'medium' ? '보통' : '낮음';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
@@ -100,44 +181,24 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _mealButton(BuildContext context, String type) {
-    return InkWell(
-      onTap: () => _save(context, type),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Text(MealType.emoji(type), style: const TextStyle(fontSize: 24)),
-            const SizedBox(height: 4),
-            Text(MealType.label(type), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _save(BuildContext context, String mealType) async {
+  Future<void> _save(BuildContext context) async {
+    final result = widget.result;
     final record = FoodRecord(
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      mealType: mealType,
+      mealType: _selectedMeal,
       foodName: result.foodName,
       calories: result.calories,
       carbs: result.carbs,
       protein: result.protein,
       fat: result.fat,
-      imagePath: imagePath,
+      imagePath: widget.imagePath,
       description: result.description,
     );
     await DatabaseService.insert(record);
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${MealType.emoji(mealType)} ${MealType.label(mealType)}에 기록했어요!')),
+      SnackBar(content: Text('${MealType.emoji(_selectedMeal)} ${MealType.label(_selectedMeal)}에 기록했어요!')),
     );
     Navigator.of(context).popUntil((route) => route.isFirst);
   }

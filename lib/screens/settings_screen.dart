@@ -87,6 +87,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
+          const SizedBox(height: 12),
+
+          // 식사 시간대 설정
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('식사 시간대 (자동 분류)', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  const Text('해당 시간에 기록하면 자동으로 분류돼요', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 12),
+                  _timeRow('🌅 아침', 6, 10),
+                  const SizedBox(height: 8),
+                  _timeRow('☀️ 점심', 11, 14),
+                  const SizedBox(height: 8),
+                  _timeRow('🌙 저녁', 17, 21),
+                  const SizedBox(height: 4),
+                  const Text('그 외 시간 → 간식', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
+                ],
+              ),
+            ),
+          ),
+
           const SizedBox(height: 20),
 
           FilledButton(
@@ -107,6 +132,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _timeRow(String label, int defaultStart, int defaultEnd) {
+    return Row(
+      children: [
+        SizedBox(width: 60, child: Text(label, style: const TextStyle(fontSize: 13))),
+        const Spacer(),
+        Text('$defaultStart:00', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const Text(' ~ ', style: TextStyle(color: AppColors.textHint)),
+        Text('$defaultEnd:00', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 

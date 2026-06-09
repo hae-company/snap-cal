@@ -7,7 +7,7 @@ import '../utils/prompt.dart';
 class GeminiService {
   static Future<AnalysisResult> analyzeFood(String apiKey, File imageFile) async {
     final model = GenerativeModel(
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash-lite',
       apiKey: apiKey,
     );
 
