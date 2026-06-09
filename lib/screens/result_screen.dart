@@ -20,16 +20,53 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   String _selectedMeal = MealType.snack;
+  late int _calories;
+  late int _carbs;
+  late int _protein;
+  late int _fat;
+  bool _editing = false;
+
+  late final TextEditingController _calCtrl;
+  late final TextEditingController _carbsCtrl;
+  late final TextEditingController _proteinCtrl;
+  late final TextEditingController _fatCtrl;
 
   @override
   void initState() {
     super.initState();
+    _calories = widget.result.calories;
+    _carbs = widget.result.carbs;
+    _protein = widget.result.protein;
+    _fat = widget.result.fat;
+    _calCtrl = TextEditingController(text: '$_calories');
+    _carbsCtrl = TextEditingController(text: '$_carbs');
+    _proteinCtrl = TextEditingController(text: '$_protein');
+    _fatCtrl = TextEditingController(text: '$_fat');
     _detectMeal();
+  }
+
+  @override
+  void dispose() {
+    _calCtrl.dispose();
+    _carbsCtrl.dispose();
+    _proteinCtrl.dispose();
+    _fatCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _detectMeal() async {
     final detected = await PrefsService.autoDetectMealType();
     setState(() => _selectedMeal = detected);
+  }
+
+  void _applyEdit() {
+    setState(() {
+      _calories = int.tryParse(_calCtrl.text) ?? _calories;
+      _carbs = int.tryParse(_carbsCtrl.text) ?? _carbs;
+      _protein = int.tryParse(_proteinCtrl.text) ?? _protein;
+      _fat = int.tryParse(_fatCtrl.text) ?? _fat;
+      _editing = false;
+    });
   }
 
   @override
@@ -54,8 +91,34 @@ class _ResultScreenState extends State<ResultScreen> {
                 children: [
                   Text(result.foodName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('약 ${result.calories} kcal', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                  const SizedBox(height: 4),
+                  // 1인분 칼로리 (메인) — 수정 가능
+                  _editing
+                    ? SizedBox(
+                        width: 120,
+                        child: TextField(
+                          controller: _calCtrl,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary),
+                          decoration: const InputDecoration(suffixText: 'kcal', border: UnderlineInputBorder()),
+                        ),
+                      )
+                    : Text('1인분 약 $_calories kcal', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                  // 1인분 기준 설명
+                  if (result.servingInfo.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(8)),
+                      child: Text(result.servingInfo, style: const TextStyle(fontSize: 12, color: AppColors.primary)),
+                    ),
+                  ],
+                  // 전체 칼로리 (참고)
+                  if (result.totalCalories > 0 && result.totalCalories != result.calories) ...[
+                    const SizedBox(height: 6),
+                    Text('사진 전체: 약 ${result.totalCalories} kcal', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  ],
+                  const SizedBox(height: 6),
                   _confidenceBadge(),
                   if (result.description.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -74,13 +137,48 @@ class _ResultScreenState extends State<ResultScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('영양성분', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Row(
+                    children: [
+                      const Text('영양성분', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () {
+                          if (_editing) {
+                            _applyEdit();
+                          } else {
+                            setState(() => _editing = true);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _editing ? AppColors.primary : AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _editing ? '완료' : '수정',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _editing ? Colors.white : AppColors.primary),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
-                  NutrientBar(label: '탄수화물', value: result.carbs, max: 150, color: AppColors.carbs, unit: 'g'),
-                  const SizedBox(height: 12),
-                  NutrientBar(label: '단백질', value: result.protein, max: 80, color: AppColors.protein, unit: 'g'),
-                  const SizedBox(height: 12),
-                  NutrientBar(label: '지방', value: result.fat, max: 70, color: AppColors.fat, unit: 'g'),
+                  _editing
+                    ? Column(children: [
+                        _editRow('탄수화물', _carbsCtrl, AppColors.carbs),
+                        const SizedBox(height: 8),
+                        _editRow('단백질', _proteinCtrl, AppColors.protein),
+                        const SizedBox(height: 8),
+                        _editRow('지방', _fatCtrl, AppColors.fat),
+                      ])
+                    : Column(children: [
+                        NutrientBar(label: '탄수화물', value: _carbs, max: 150, color: AppColors.carbs, unit: 'g'),
+                        const SizedBox(height: 12),
+                        NutrientBar(label: '단백질', value: _protein, max: 80, color: AppColors.protein, unit: 'g'),
+                        const SizedBox(height: 12),
+                        NutrientBar(label: '지방', value: _fat, max: 70, color: AppColors.fat, unit: 'g'),
+                      ]),
                 ],
               ),
             ),
@@ -167,6 +265,28 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
 
+  Widget _editRow(String label, TextEditingController ctrl, Color color) {
+    return Row(
+      children: [
+        SizedBox(width: 60, child: Text(label, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600))),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              suffixText: 'g',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _confidenceBadge() {
     final result = widget.result;
     final color = result.confidence == 'high' ? AppColors.primary
@@ -187,10 +307,10 @@ class _ResultScreenState extends State<ResultScreen> {
       date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       mealType: _selectedMeal,
       foodName: result.foodName,
-      calories: result.calories,
-      carbs: result.carbs,
-      protein: result.protein,
-      fat: result.fat,
+      calories: _calories,
+      carbs: _carbs,
+      protein: _protein,
+      fat: _fat,
       imagePath: widget.imagePath,
       description: result.description,
     );
