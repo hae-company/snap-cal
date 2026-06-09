@@ -51,6 +51,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final totalProtein = records.fold(0, (s, r) => s + r.protein);
     final totalFat = records.fold(0, (s, r) => s + r.fat);
     final displayDate = DateFormat('M월 d일 EEEE', 'ko').format(day);
+    final nutrientGoals = await PrefsService.getNutrientGoals();
 
     List<FoodRecord> mealRecords(String type) =>
         records.where((r) => r.mealType == type).toList();
@@ -101,11 +102,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       children: [
                         const Text('영양성분', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 14),
-                        NutrientBar(label: '탄수화물', value: totalCarbs, max: 300, color: AppColors.carbs, unit: 'g'),
-                        const SizedBox(height: 10),
-                        NutrientBar(label: '단백질', value: totalProtein, max: 150, color: AppColors.protein, unit: 'g'),
-                        const SizedBox(height: 10),
-                        NutrientBar(label: '지방', value: totalFat, max: 100, color: AppColors.fat, unit: 'g'),
+                        NutrientBar(label: '탄수화물', value: totalCarbs, max: nutrientGoals['carbs']!, color: AppColors.carbs, unit: 'g', showRemaining: true),
+                        const SizedBox(height: 12),
+                        NutrientBar(label: '단백질', value: totalProtein, max: nutrientGoals['protein']!, color: AppColors.protein, unit: 'g', showRemaining: true),
+                        const SizedBox(height: 12),
+                        NutrientBar(label: '지방', value: totalFat, max: nutrientGoals['fat']!, color: AppColors.fat, unit: 'g', showRemaining: true),
                       ],
                     ),
                   ),

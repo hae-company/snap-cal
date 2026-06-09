@@ -10,6 +10,9 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _goalCtrl = TextEditingController();
+  final _carbsCtrl = TextEditingController();
+  final _proteinCtrl = TextEditingController();
+  final _fatCtrl = TextEditingController();
   final _keyCtrl = TextEditingController();
 
   @override
@@ -21,12 +24,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _load() async {
     final goal = await PrefsService.getDailyGoal();
     final key = await PrefsService.getApiKey();
+    final nutrients = await PrefsService.getNutrientGoals();
     _goalCtrl.text = '$goal';
+    _carbsCtrl.text = '${nutrients['carbs']}';
+    _proteinCtrl.text = '${nutrients['protein']}';
+    _fatCtrl.text = '${nutrients['fat']}';
     _keyCtrl.text = key;
   }
 
   Future<void> _save() async {
     await PrefsService.setDailyGoal(int.tryParse(_goalCtrl.text) ?? 2000);
+    await PrefsService.setNutrientGoals(
+      int.tryParse(_carbsCtrl.text) ?? 250,
+      int.tryParse(_proteinCtrl.text) ?? 60,
+      int.tryParse(_fatCtrl.text) ?? 55,
+    );
     await PrefsService.setApiKey(_keyCtrl.text.trim());
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('설정이 저장되었어요')));
@@ -57,6 +69,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 탄단지 목표
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('영양소 목표 (1일)', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  _nutrientGoalRow('탄수화물', _carbsCtrl, AppColors.carbs),
+                  const SizedBox(height: 8),
+                  _nutrientGoalRow('단백질', _proteinCtrl, AppColors.protein),
+                  const SizedBox(height: 8),
+                  _nutrientGoalRow('지방', _fatCtrl, AppColors.fat),
                 ],
               ),
             ),
@@ -135,6 +168,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _nutrientGoalRow(String label, TextEditingController ctrl, Color color) {
+    return Row(
+      children: [
+        SizedBox(width: 60, child: Text(label, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600))),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              suffixText: 'g',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _timeRow(String label, int defaultStart, int defaultEnd) {
     return Row(
       children: [
@@ -150,6 +204,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _goalCtrl.dispose();
+    _carbsCtrl.dispose();
+    _proteinCtrl.dispose();
+    _fatCtrl.dispose();
     _keyCtrl.dispose();
     super.dispose();
   }

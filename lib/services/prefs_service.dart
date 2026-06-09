@@ -5,6 +5,26 @@ class PrefsService {
   static const _keyGoal = 'daily_goal';
   static const _keyApiKey = 'gemini_api_key';
   static const _keyDark = 'dark_mode';
+  static const _keyCarbsGoal = 'carbs_goal';
+  static const _keyProteinGoal = 'protein_goal';
+  static const _keyFatGoal = 'fat_goal';
+  // 탄단지 목표 (g)
+  static Future<Map<String, int>> getNutrientGoals() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'carbs': prefs.getInt(_keyCarbsGoal) ?? 250,
+      'protein': prefs.getInt(_keyProteinGoal) ?? 60,
+      'fat': prefs.getInt(_keyFatGoal) ?? 55,
+    };
+  }
+
+  static Future<void> setNutrientGoals(int carbs, int protein, int fat) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyCarbsGoal, carbs);
+    await prefs.setInt(_keyProteinGoal, protein);
+    await prefs.setInt(_keyFatGoal, fat);
+  }
+
   // 식사 시간대 (HH 형식으로 저장)
   static const _keyBreakfastStart = 'meal_breakfast_start';
   static const _keyBreakfastEnd = 'meal_breakfast_end';
