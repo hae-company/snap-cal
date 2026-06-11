@@ -320,8 +320,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () async {
-              final db = await DatabaseService.database;
-              await db.delete('food_records');
+              
+              await DatabaseService.deleteAll();
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
