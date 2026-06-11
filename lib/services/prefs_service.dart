@@ -8,6 +8,17 @@ class PrefsService {
   static const _keyCarbsGoal = 'carbs_goal';
   static const _keyProteinGoal = 'protein_goal';
   static const _keyFatGoal = 'fat_goal';
+  static const _keyOnboarded = 'onboarded';
+
+  static Future<bool> isOnboarded() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboarded) ?? false;
+  }
+
+  static Future<void> setOnboarded(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboarded, v);
+  }
   // 탄단지 목표 (g)
   static Future<Map<String, int>> getNutrientGoals() async {
     final prefs = await SharedPreferences.getInstance();

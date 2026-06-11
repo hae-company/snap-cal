@@ -3,6 +3,8 @@ import 'screens/calendar_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'services/prefs_service.dart';
 import 'utils/constants.dart';
 
 class SnapCalApp extends StatelessWidget {
@@ -35,8 +37,40 @@ class SnapCalApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const MainNav(),
+      home: const AppEntry(),
     );
+  }
+}
+
+class AppEntry extends StatefulWidget {
+  const AppEntry({super.key});
+  @override
+  State<AppEntry> createState() => _AppEntryState();
+}
+
+class _AppEntryState extends State<AppEntry> {
+  bool? _onboarded;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final v = await PrefsService.isOnboarded();
+    setState(() => _onboarded = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_onboarded == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (!_onboarded!) {
+      return OnboardingScreen(onComplete: () => setState(() => _onboarded = true));
+    }
+    return const MainNav();
   }
 }
 
