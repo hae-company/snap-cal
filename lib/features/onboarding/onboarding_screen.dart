@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../../core/nutrition_calc.dart';
 import '../../data/providers.dart';
+import '../../shared/widgets/brand.dart';
+import '../../shared/widgets/calorie_ring.dart';
 
-/// 첫 실행 목표 설정. 완료하면 라우터가 홈으로 보낸다.
+/// 첫 실행: 환영 → 성별 → 신체 정보 → 활동량 → 맞춤 목표. 완료하면 라우터가 홈으로 보낸다.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -14,7 +18,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  static const _lastStep = 3;
+  static const _lastStep = 4;
 
   int _step = 0;
   String _gender = '';
@@ -32,7 +36,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     activityIndex: _activity,
   );
 
-  bool get _canProceed => _step != 0 || _gender.isNotEmpty;
+  bool get _canProceed => _step != 1 || _gender.isNotEmpty;
+
+  void _next() {
+    HapticFeedback.selectionClick();
+    if (_step < _lastStep) {
+      setState(() => _step++);
+    } else {
+      _finish();
+    }
+  }
 
   Future<void> _finish() async {
     setState(() => _saving = true);
@@ -42,69 +55,101 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
+    if (_step == 0) return _Welcome(onStart: _next);
 
+    final p = context.palette;
     return Scaffold(
       backgroundColor: p.surface,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpace.xl),
-          child: Column(
-            children: [
-              Row(
-                children: List.generate(
-                  _lastStep + 1,
-                  (i) => Expanded(
-                    child: AnimatedContainer(
-                      duration: AppMotion.fast,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: i <= _step ? p.brand : p.border,
-                        borderRadius: BorderRadius.circular(2),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.xxs,
+                AppSpace.xxs,
+                AppSpace.screen,
+                0,
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: _saving ? null : () => setState(() => _step--),
+                    tooltip: '이전',
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  const SizedBox(width: AppSpace.xxs),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(end: _step / _lastStep),
+                        duration: AppMotion.page,
+                        curve: Curves.easeOutCubic,
+                        builder: (_, v, _) => LinearProgressIndicator(
+                          value: v,
+                          minHeight: 6,
+                          backgroundColor: p.surfaceAlt,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: AppSpace.sm),
+                  Text(
+                    '$_step/$_lastStep',
+                    style: AppText.numeric(
+                      AppText.caption,
+                    ).copyWith(color: p.text3),
+                  ),
+                ],
               ),
-              const SizedBox(height: 40),
-              Expanded(
+            ),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: AppMotion.page,
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: Alignment.topCenter,
+                  children: [...previous, ?current],
+                ),
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: SlideTransition(
+                    position: Tween(
+                      begin: const Offset(0.04, 0),
+                      end: Offset.zero,
+                    ).animate(anim),
+                    child: child,
+                  ),
+                ),
                 child: SingleChildScrollView(
+                  key: ValueKey(_step),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.xl,
+                    AppSpace.xl,
+                    AppSpace.xl,
+                    AppSpace.xl,
+                  ),
                   child: switch (_step) {
-                    0 => _genderStep(p),
-                    1 => _bodyStep(p),
-                    2 => _activityStep(p),
+                    1 => _genderStep(p),
+                    2 => _bodyStep(p),
+                    3 => _activityStep(p),
                     _ => _resultStep(p),
                   },
                 ),
               ),
-              Row(
-                children: [
-                  if (_step > 0) ...[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => setState(() => _step--),
-                        child: const Text('이전'),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpace.sm),
-                  ],
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: !_canProceed || _saving
-                          ? null
-                          : () => _step < _lastStep
-                                ? setState(() => _step++)
-                                : _finish(),
-                      child: Text(_step < _lastStep ? '다음' : '시작하기'),
-                    ),
-                  ),
-                ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.xl,
+                0,
+                AppSpace.xl,
+                AppSpace.md,
               ),
-            ],
-          ),
+              child: FilledButton(
+                onPressed: !_canProceed || _saving ? null : _next,
+                child: Text(_step < _lastStep ? '다음' : '스냅칼 시작하기'),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -113,7 +158,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _heading(AppPalette p, String title, String subtitle) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(title, style: AppText.title1.copyWith(fontSize: 28)),
+      Text(
+        title,
+        style: AppText.title1.copyWith(fontSize: 28, letterSpacing: -0.5),
+      ),
       const SizedBox(height: AppSpace.xs),
       Text(subtitle, style: AppText.body.copyWith(color: p.text2)),
     ],
@@ -123,20 +171,36 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading(p, '성별을 알려주세요', '정확한 칼로리 계산을 위해 필요해요'),
-        const SizedBox(height: 40),
+        _heading(p, '성별을 알려주세요', '기초대사량 계산에 필요해요'),
+        const SizedBox(height: AppSpace.xxl),
         Row(
           children: [
-            Expanded(child: _genderCard(p, 'male', '👨', '남성')),
-            const SizedBox(width: AppSpace.md),
-            Expanded(child: _genderCard(p, 'female', '👩', '여성')),
+            Expanded(
+              child: _genderCard(p, 'male', Icons.male_rounded, '남성', p.carbs),
+            ),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(
+              child: _genderCard(
+                p,
+                'female',
+                Icons.female_rounded,
+                '여성',
+                p.protein,
+              ),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _genderCard(AppPalette p, String value, String emoji, String label) {
+  Widget _genderCard(
+    AppPalette p,
+    String value,
+    IconData icon,
+    String label,
+    Color color,
+  ) {
     final selected = _gender == value;
     return _SelectableCard(
       selected: selected,
@@ -144,13 +208,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       padding: const EdgeInsets.symmetric(vertical: AppSpace.xxl),
       child: Column(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 48)),
-          const SizedBox(height: AppSpace.xs),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: color.withAlpha(30),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 36, color: color),
+          ),
+          const SizedBox(height: AppSpace.sm),
           Text(
             label,
             style: AppText.headline.copyWith(
-              fontSize: 18,
-              color: selected ? p.brand : p.text1,
+              color: selected ? p.text1 : p.text2,
             ),
           ),
         ],
@@ -162,37 +233,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading(p, '신체 정보', '기초대사량 계산에 사용돼요'),
-        const SizedBox(height: 40),
-        _slider(
-          p,
-          '나이',
-          '$_age세',
-          _age.toDouble(),
-          10,
-          80,
-          (v) => _age = v.round(),
-        ),
-        const SizedBox(height: AppSpace.xl),
-        _slider(
-          p,
-          '키',
-          '${_height.round()}cm',
-          _height,
-          130,
-          210,
-          (v) => _height = v,
-        ),
-        const SizedBox(height: AppSpace.xl),
-        _slider(
-          p,
-          '몸무게',
-          '${_weight.round()}kg',
-          _weight,
-          30,
-          150,
-          (v) => _weight = v,
-        ),
+        _heading(p, '몸 상태를 알려주세요', '하루 필요한 칼로리를 계산해요'),
+        const SizedBox(height: AppSpace.xxl),
+        _slider(p, '나이', _age.toDouble(), '세', 10, 80, (v) => _age = v.round()),
+        const SizedBox(height: AppSpace.sm),
+        _slider(p, '키', _height, 'cm', 130, 210, (v) => _height = v),
+        const SizedBox(height: AppSpace.sm),
+        _slider(p, '몸무게', _weight, 'kg', 30, 150, (v) => _weight = v),
       ],
     );
   }
@@ -200,183 +247,339 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _slider(
     AppPalette p,
     String label,
-    String value,
     double current,
+    String unit,
     double min,
     double max,
     ValueChanged<double> onChanged,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(label, style: AppText.headline.copyWith(fontSize: 16)),
-            const Spacer(),
-            Text(
-              value,
-              style: AppText.numeric(AppText.title2).copyWith(color: p.brand),
-            ),
-          ],
-        ),
-        Slider(
-          value: current,
-          min: min,
-          max: max,
-          semanticFormatterCallback: (_) => value,
-          onChanged: (v) => setState(() => onChanged(v)),
-        ),
-      ],
-    );
-  }
-
-  Widget _activityStep(AppPalette p) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _heading(p, '활동량은 어떤가요?', '일일 소비 칼로리를 계산해요'),
-        const SizedBox(height: AppSpace.xxl),
-        for (var i = 0; i < ActivityLevel.all.length; i++) ...[
-          _activityCard(p, i),
-          if (i < ActivityLevel.all.length - 1)
-            const SizedBox(height: AppSpace.sm),
-        ],
-      ],
-    );
-  }
-
-  Widget _activityCard(AppPalette p, int index) {
-    final selected = _activity == index;
-    final a = ActivityLevel.all[index];
-    return _SelectableCard(
-      selected: selected,
-      onTap: () => setState(() => _activity = index),
-      padding: const EdgeInsets.all(AppSpace.md),
-      child: Row(
+    final display = '${current.round()}';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        AppSpace.md,
+        AppSpace.lg,
+        AppSpace.xs,
+      ),
+      decoration: BoxDecoration(
+        color: p.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Column(
         children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: selected ? p.brand : p.text3, width: 2),
-              color: selected ? p.brand : Colors.transparent,
-            ),
-            child: selected
-                ? Icon(Icons.check, size: 14, color: p.onBrand)
-                : null,
-          ),
-          const SizedBox(width: AppSpace.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              Text(label, style: AppText.label.copyWith(color: p.text2)),
+              const Spacer(),
               Text(
-                a.label,
-                style: AppText.headline.copyWith(
-                  fontSize: 16,
-                  color: selected ? p.brand : p.text1,
-                ),
+                display,
+                style: AppText.numeric(AppText.title1).copyWith(color: p.text1),
               ),
-              Text(
-                a.description,
-                style: AppText.caption.copyWith(
-                  fontWeight: FontWeight.w400,
-                  color: p.text2,
+              const SizedBox(width: 3),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  unit,
+                  style: AppText.caption.copyWith(color: p.text2),
                 ),
               ),
             ],
+          ),
+          Slider(
+            value: current,
+            min: min,
+            max: max,
+            semanticFormatterCallback: (_) => '$display$unit',
+            onChanged: (v) => setState(() => onChanged(v)),
           ),
         ],
       ),
     );
   }
 
-  Widget _resultStep(AppPalette p) {
-    final goals = NutritionGoals.fromKcal(_tdee);
+  Widget _activityStep(AppPalette p) {
+    const icons = [
+      Icons.weekend_rounded,
+      Icons.directions_walk_rounded,
+      Icons.directions_run_rounded,
+      Icons.fitness_center_rounded,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('맞춤 목표가\n설정되었어요!', style: AppText.title1.copyWith(fontSize: 28)),
+        _heading(p, '평소 얼마나 움직이세요?', '활동량에 따라 목표 칼로리가 달라져요'),
         const SizedBox(height: AppSpace.xxl),
+        for (var i = 0; i < ActivityLevel.all.length; i++) ...[
+          _SelectableCard(
+            selected: _activity == i,
+            onTap: () => setState(() => _activity = i),
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _activity == i ? p.brand : p.surfaceAlt,
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                  ),
+                  child: Icon(
+                    icons[i],
+                    color: _activity == i ? p.onBrand : p.text2,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ActivityLevel.all[i].label,
+                        style: AppText.headline.copyWith(fontSize: 16),
+                      ),
+                      Text(
+                        ActivityLevel.all[i].description,
+                        style: AppText.caption.copyWith(color: p.text2),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_activity == i)
+                  Icon(Icons.check_circle_rounded, color: p.brand),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.sm),
+        ],
+      ],
+    );
+  }
+
+  Widget _resultStep(AppPalette p) {
+    final g = NutritionGoals.fromKcal(_tdee);
+    Widget macro(String label, int grams, String pct, Color c) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(AppSpace.md),
+        decoration: BoxDecoration(
+          color: c.withAlpha(24),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppText.micro.copyWith(fontSize: 12, color: p.text2),
+            ),
+            const SizedBox(height: AppSpace.xxs),
+            Text(
+              '${grams}g',
+              style: AppText.numeric(AppText.title2).copyWith(color: c),
+            ),
+            Text(pct, style: AppText.micro.copyWith(color: p.text3)),
+          ],
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _heading(p, '맞춤 목표가 준비됐어요', '이 목표에 맞춰 남은 칼로리를 알려드릴게요'),
+        const SizedBox(height: AppSpace.xl),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(AppSpace.xl),
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.xxl),
           decoration: BoxDecoration(
-            color: p.brandSubtle,
+            gradient: AppBrand.inkGradient,
             borderRadius: BorderRadius.circular(AppRadius.sheet),
           ),
           child: Column(
             children: [
               Text(
-                '일일 권장 칼로리',
-                style: AppText.label.copyWith(
-                  fontWeight: FontWeight.w400,
-                  color: p.text2,
+                '하루 권장 칼로리',
+                style: AppText.label.copyWith(color: const Color(0xFF9CA3AF)),
+              ),
+              const SizedBox(height: AppSpace.xs),
+              ShaderMask(
+                shaderCallback: (r) => AppBrand.neonGradient.createShader(r),
+                child: Text(
+                  formatKcal(g.kcal),
+                  style: AppText.display.copyWith(
+                    fontSize: 56,
+                    color: Colors.white,
+                    letterSpacing: -1.5,
+                  ),
                 ),
               ),
-              const SizedBox(height: AppSpace.xxs),
               Text(
-                '${goals.kcal} kcal',
-                style: AppText.display.copyWith(fontSize: 36, color: p.brand),
+                'kcal',
+                style: AppText.headline.copyWith(
+                  color: const Color(0xFF9CA3AF),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: AppSpace.lg),
+        const SizedBox(height: AppSpace.sm),
         Row(
           children: [
-            _macro(p, '탄수화물', goals.carbsG, '50%', p.carbs),
-            const SizedBox(width: AppSpace.sm),
-            _macro(p, '단백질', goals.proteinG, '30%', p.protein),
-            const SizedBox(width: AppSpace.sm),
-            _macro(p, '지방', goals.fatG, '20%', p.fat),
+            macro('탄수화물', g.carbsG, '50%', p.carbs),
+            const SizedBox(width: AppSpace.xs),
+            macro('단백질', g.proteinG, '30%', p.protein),
+            const SizedBox(width: AppSpace.xs),
+            macro('지방', g.fatG, '20%', p.fat),
           ],
         ),
-        const SizedBox(height: AppSpace.xl),
+        const SizedBox(height: AppSpace.lg),
         Text(
-          '설정에서 언제든 변경할 수 있어요',
-          style: AppText.caption.copyWith(
-            fontWeight: FontWeight.w400,
-            color: p.text3,
-          ),
+          '목표는 MY에서 언제든 바꿀 수 있어요',
+          style: AppText.caption.copyWith(color: p.text3),
         ),
       ],
     );
   }
+}
 
-  Widget _macro(
-    AppPalette p,
-    String label,
-    int grams,
-    String pct,
-    Color color,
-  ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(AppSpace.md),
-        decoration: BoxDecoration(
-          color: color.withAlpha(24),
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: AppText.micro.copyWith(fontSize: 12, color: color),
+/// 첫 화면. 로고와 같은 어두운 브랜드 화면.
+class _Welcome extends StatelessWidget {
+  const _Welcome({required this.onStart});
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget feature(IconData icon, String title, String body) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.md),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0x1A6CF5B4),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
-            const SizedBox(height: AppSpace.xxs),
-            Text(
-              '${grams}g',
-              style: AppText.numeric(AppText.title2).copyWith(color: color),
+            child: Icon(icon, color: AppBrand.neon, size: 22),
+          ),
+          const SizedBox(width: AppSpace.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppText.headline.copyWith(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  body,
+                  style: AppText.caption.copyWith(
+                    color: const Color(0xFF9CA3AF),
+                  ),
+                ),
+              ],
             ),
-            Text(
-              pct,
-              style: AppText.micro.copyWith(
-                fontWeight: FontWeight.w500,
-                color: color.withAlpha(170),
+          ),
+        ],
+      ),
+    );
+
+    return Theme(
+      data: AppTheme.dark,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: AppBrand.ink,
+          body: Stack(
+            children: [
+              Positioned(
+                top: -120,
+                left: -80,
+                right: -80,
+                child: Container(
+                  height: 420,
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [Color(0x4012B76A), Color(0x0012B76A)],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.xl,
+                    AppSpace.xxxl,
+                    AppSpace.xl,
+                    AppSpace.md,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const LogoTile(size: 88),
+                      const SizedBox(height: AppSpace.xl),
+                      Text(
+                        '찍으면 끝.\n한식도 정확하게.',
+                        style: AppText.title1.copyWith(
+                          fontSize: 34,
+                          height: 1.25,
+                          color: Colors.white,
+                          letterSpacing: -0.8,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.sm),
+                      Text(
+                        '사진 한 장으로 칼로리와 탄단지를 기록하세요',
+                        style: AppText.body.copyWith(
+                          color: const Color(0xFF9CA3AF),
+                        ),
+                      ),
+                      const Spacer(),
+                      feature(
+                        Icons.photo_camera_rounded,
+                        '사진 한 장이면 끝',
+                        '검색 없이 찍기만 하면 AI가 분석해요',
+                      ),
+                      feature(
+                        Icons.ramen_dining_rounded,
+                        '한식에 강해요',
+                        '찌개, 반찬, 한 상 차림도 1인분 기준으로',
+                      ),
+                      feature(
+                        Icons.donut_large_rounded,
+                        '남은 칼로리 한눈에',
+                        '목표까지 얼마나 남았는지 바로 보여요',
+                      ),
+                      const SizedBox(height: AppSpace.lg),
+                      SizedBox(
+                        width: double.infinity,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: AppBrand.neonGradient,
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
+                          ),
+                          child: FilledButton(
+                            onPressed: onStart,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              foregroundColor: AppBrand.ink,
+                            ),
+                            child: const Text('시작하기'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -403,7 +606,10 @@ class _SelectableCard extends StatelessWidget {
       selected: selected,
       button: true,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: AnimatedContainer(
           duration: AppMotion.fast,
           padding: padding,

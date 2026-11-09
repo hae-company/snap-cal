@@ -8,7 +8,6 @@ import 'package:snap_cal/app/theme/tokens.dart';
 import 'package:snap_cal/core/date_key.dart';
 import 'package:snap_cal/data/models/food_record.dart';
 import 'package:snap_cal/data/providers.dart';
-import 'package:snap_cal/features/log/day_detail_sheet.dart';
 
 Future<ProviderContainer> pumpApp(
   WidgetTester tester,
@@ -32,11 +31,30 @@ Future<ProviderContainer> pumpApp(
   return container;
 }
 
+FoodRecord lunch(String name, int kcal) => FoodRecord(
+  date: dateKey(DateTime.now()),
+  mealType: 'lunch',
+  foodName: name,
+  calories: kcal,
+  carbs: 90,
+  protein: 20,
+  fat: 15,
+);
+
 void main() {
   setUpAll(() => initializeDateFormatting('ko'));
 
-  testWidgets('첫 실행: 온보딩을 마치면 목표가 저장되고 캘린더로 간다', (tester) async {
+  testWidgets('첫 실행: 온보딩을 마치면 목표가 저장되고 오늘 화면으로 간다', (tester) async {
     final c = await pumpApp(tester, {});
+    expect(find.text('찍으면 끝.\n한식도 정확하게.'), findsOneWidget);
+
+    await tester.tap(find.text('시작하기'));
+    await tester.pumpAndSettle();
+    expect(find.text('성별을 알려주세요'), findsOneWidget);
+
+    // 성별을 고르기 전에는 다음으로 갈 수 없다
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
     expect(find.text('성별을 알려주세요'), findsOneWidget);
 
     await tester.tap(find.text('남성'));
@@ -45,24 +63,39 @@ void main() {
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
     }
-    expect(find.textContaining('2245 kcal'), findsOneWidget);
+    expect(find.text('2,245'), findsOneWidget);
 
-    await tester.tap(find.text('시작하기'));
+    await tester.tap(find.text('스냅칼 시작하기'));
     await tester.pumpAndSettle();
 
-    expect(find.text('SnapCal'), findsOneWidget);
+    expect(find.text('오늘의 식사'), findsOneWidget);
     expect(c.read(goalsProvider).kcal, 2245);
     expect(c.read(onboardedProvider), isTrue);
+  });
+
+  testWidgets('오늘 화면: 남은 칼로리와 기록이 보이고, 밀어서 지울 수 있다', (tester) async {
+    final c = await pumpApp(tester, {'onboarded': true, 'daily_goal': 2000});
+    await c.read(mealActionsProvider).add(lunch('비빔밥', 600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1,400'), findsOneWidget); // 남은 칼로리
+    expect(find.text('비빔밥'), findsOneWidget);
+    expect(find.text('1일 연속'), findsOneWidget);
+
+    await tester.drag(find.text('비빔밥'), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('비빔밥'), findsNothing);
+    expect(find.text('2,000'), findsWidgets);
   });
 
   testWidgets('탭 이동과 다크 테마 전환', (tester) async {
     final c = await pumpApp(tester, {'onboarded': true});
 
-    await tester.tap(find.text('통계'));
+    await tester.tap(find.text('리포트'));
     await tester.pumpAndSettle();
-    expect(find.text('이번 주 통계'), findsOneWidget);
+    expect(find.text('일별 칼로리'), findsOneWidget);
 
-    await tester.tap(find.text('설정'));
+    await tester.tap(find.text('MY'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('다크'),
@@ -73,49 +106,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(c.read(themeModeProvider), ThemeMode.dark);
-    final ctx = tester.element(find.text('테마'));
-    expect(ctx.palette.bg, AppPalette.dark.bg);
+    expect(tester.element(find.text('다크')).palette.bg, AppPalette.dark.bg);
   });
 
-  testWidgets('하루 상세: 기록을 지우면 시트에서 바로 사라진다', (tester) async {
+  testWidgets('기록 화면: 날짜 원 크기가 일정하고, 고른 날의 기록이 아래에 보인다', (tester) async {
     final c = await pumpApp(tester, {'onboarded': true});
-    final today = DateTime.now();
-    await c
-        .read(mealActionsProvider)
-        .add(
-          FoodRecord(
-            date: dateKey(today),
-            mealType: 'lunch',
-            foodName: '비빔밥',
-            calories: 600,
-            carbs: 90,
-            protein: 20,
-            fat: 15,
-          ),
-        );
+    await c.read(mealActionsProvider).add(lunch('김치찌개', 700));
 
-    showDayDetailSheet(tester.element(find.text('SnapCal')), today);
+    await tester.tap(find.text('기록'));
     await tester.pumpAndSettle();
-    expect(find.text('비빔밥'), findsOneWidget);
-    expect(find.text('600 kcal'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('삭제'));
-    await tester.pumpAndSettle();
-    expect(find.text('비빔밥'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.text('이 날은 기록이 없어요'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.text('이 날은 기록이 없어요'), findsOneWidget);
-  });
-
-  testWidgets('캘린더: 기록이 없는 오늘도 날짜 원 크기가 같다', (tester) async {
-    await pumpApp(tester, {'onboarded': true});
     final today = DateTime.now().day.toString();
     final circle = find
-        .ancestor(of: find.text(today), matching: find.byType(Container))
+        .ancestor(
+          of: find.text(today),
+          matching: find.byType(AnimatedContainer),
+        )
         .first;
-    expect(tester.getSize(circle), const Size(48, 48));
+    expect(tester.getSize(circle), const Size(40, 40));
+
+    await tester.scrollUntilVisible(
+      find.text('김치찌개'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('김치찌개'), findsOneWidget);
+  });
+
+  testWidgets('목표 수정 시트', (tester) async {
+    final c = await pumpApp(tester, {'onboarded': true});
+    await tester.tap(find.text('MY'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('수정'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '1800');
+    await tester.tap(find.text('칼로리에 맞춰 탄단지 자동 계산'));
+    await tester.pump();
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(c.read(goalsProvider).kcal, 1800);
+    expect(c.read(goalsProvider).carbsG, 225);
   });
 }

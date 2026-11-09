@@ -21,6 +21,11 @@ class SnapCalApp extends ConsumerWidget {
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      builder: (context, child) {
+        // 첫 화면에서 로고가 늦게 뜨지 않도록 미리 불러 둔다
+        precacheImage(const AssetImage('assets/brand/tile.png'), context);
+        return child!;
+      },
     );
   }
 }

@@ -11,12 +11,18 @@ import '../../core/meal_type.dart';
 import '../../data/models/analysis_result.dart';
 import '../../data/models/food_record.dart';
 import '../../data/providers.dart';
-import '../../shared/widgets/nutrient_bar.dart';
+import '../../shared/meal_style.dart';
+import '../../shared/widgets/calorie_ring.dart';
 
 class ResultArgs {
-  const ResultArgs({required this.result, required this.imagePath});
+  const ResultArgs({
+    required this.result,
+    required this.imagePath,
+    this.presetMeal,
+  });
   final AnalysisResult result;
   final String imagePath;
+  final String? presetMeal;
 }
 
 class ResultScreen extends ConsumerStatefulWidget {
@@ -28,10 +34,9 @@ class ResultScreen extends ConsumerStatefulWidget {
 }
 
 class _ResultScreenState extends ConsumerState<ResultScreen> {
-  late String _meal = MealType.detect(
-    DateTime.now(),
-    ref.read(mealTimesProvider),
-  );
+  late String _meal =
+      widget.args.presetMeal ??
+      MealType.detect(DateTime.now(), ref.read(mealTimesProvider));
   late int _calories = widget.args.result.calories;
   late int _carbs = widget.args.result.carbs;
   late int _protein = widget.args.result.protein;
@@ -43,6 +48,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   Future<void> _edit(
     String label,
     int current,
+    String unit,
     ValueChanged<int> onSave,
   ) async {
     final ctrl = TextEditingController(text: '$current');
@@ -55,9 +61,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           autofocus: true,
-          decoration: InputDecoration(
-            suffixText: label == '칼로리' ? 'kcal' : 'g',
-          ),
+          style: AppText.numeric(AppText.title2),
+          decoration: InputDecoration(suffixText: unit),
         ),
         actions: [
           TextButton(
@@ -92,11 +97,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             description: _result.description,
           ),
         );
+    HapticFeedback.mediumImpact();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${MealType.emoji(_meal)} ${MealType.label(_meal)}에 기록했어요!',
+          '${MealType.label(_meal)}에 ${formatKcal(_calories)} kcal를 기록했어요',
         ),
       ),
     );
@@ -108,234 +114,385 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final p = context.palette;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('AI 분석 결과')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpace.md),
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            child: Image.file(
-              File(widget.args.imagePath),
-              height: 220,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  Container(height: 220, color: p.surfaceAlt),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 320,
+            pinned: true,
+            stretch: true,
+            backgroundColor: p.bg,
+            leading: Padding(
+              padding: const EdgeInsets.all(8),
+              child: IconButton.filled(
+                onPressed: () => context.pop(),
+                tooltip: '닫기',
+                icon: const Icon(Icons.close_rounded, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black45,
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpace.lg),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpace.lg),
-              child: Column(
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(
-                    _result.foodName,
-                    style: AppText.title1,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpace.xs),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(AppRadius.chip),
-                    onTap: () => _edit('칼로리', _calories, (v) => _calories = v),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '1인분 약 $_calories kcal',
-                          style: AppText.numeric(AppText.title1).copyWith(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: p.brand,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpace.xxs),
-                        Icon(Icons.edit, size: 14, color: p.text3),
-                      ],
+                  Image.file(
+                    File(widget.args.imagePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: p.surfaceAlt,
+                      child: Icon(
+                        Icons.rice_bowl_rounded,
+                        size: 64,
+                        color: p.text3,
+                      ),
                     ),
                   ),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.center,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x00000000), Color(0x66000000)],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: AppSpace.screen,
+                    bottom: AppSpace.lg,
+                    child: _confidence(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.screen,
+                AppSpace.xl,
+                AppSpace.screen,
+                AppSpace.xl,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_result.foodName, style: AppText.title1),
                   if (_result.servingInfo.isNotEmpty) ...[
-                    const SizedBox(height: AppSpace.xxs),
+                    const SizedBox(height: AppSpace.xs),
                     _Pill(
+                      icon: Icons.restaurant_rounded,
                       text: _result.servingInfo,
                       color: p.brand,
                       background: p.brandSubtle,
                     ),
                   ],
-                  if (_result.totalCalories > 0 &&
-                      _result.totalCalories != _result.calories) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      '사진 전체: 약 ${_result.totalCalories} kcal',
-                      style: AppText.caption.copyWith(color: p.text2),
+                  const SizedBox(height: AppSpace.lg),
+                  Semantics(
+                    button: true,
+                    label: '칼로리 $_calories, 탭하여 수정',
+                    excludeSemantics: true,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                      onTap: () =>
+                          _edit('칼로리', _calories, 'kcal', (v) => _calories = v),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            formatKcal(_calories),
+                            style: AppText.display.copyWith(
+                              fontSize: 48,
+                              color: p.text1,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              'kcal',
+                              style: AppText.headline.copyWith(color: p.text2),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpace.xs),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Icon(
+                              Icons.edit_rounded,
+                              size: 18,
+                              color: p.text3,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                  const SizedBox(height: 6),
-                  _confidence(p),
+                  ),
+                  Text(
+                    _result.totalCalories > 0 &&
+                            _result.totalCalories != _result.calories
+                        ? '1인분 기준 · 사진 전체는 약 ${formatKcal(_result.totalCalories)} kcal'
+                        : '1인분 기준',
+                    style: AppText.caption.copyWith(color: p.text2),
+                  ),
+                  const SizedBox(height: AppSpace.lg),
+                  Row(
+                    children: [
+                      _MacroTile(
+                        label: '탄수화물',
+                        grams: _carbs,
+                        color: p.carbs,
+                        onTap: () =>
+                            _edit('탄수화물', _carbs, 'g', (v) => _carbs = v),
+                      ),
+                      const SizedBox(width: AppSpace.xs),
+                      _MacroTile(
+                        label: '단백질',
+                        grams: _protein,
+                        color: p.protein,
+                        onTap: () =>
+                            _edit('단백질', _protein, 'g', (v) => _protein = v),
+                      ),
+                      const SizedBox(width: AppSpace.xs),
+                      _MacroTile(
+                        label: '지방',
+                        grams: _fat,
+                        color: p.fat,
+                        onTap: () => _edit('지방', _fat, 'g', (v) => _fat = v),
+                      ),
+                    ],
+                  ),
                   if (_result.description.isNotEmpty) ...[
-                    const SizedBox(height: AppSpace.xs),
-                    Text(
-                      _result.description,
-                      style: AppText.caption.copyWith(color: p.text2),
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: AppSpace.md),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpace.md),
+                      decoration: BoxDecoration(
+                        color: p.surfaceAlt,
+                        borderRadius: BorderRadius.circular(AppRadius.control),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 16,
+                            color: p.brand,
+                          ),
+                          const SizedBox(width: AppSpace.xs),
+                          Expanded(
+                            child: Text(
+                              _result.description,
+                              style: AppText.caption.copyWith(color: p.text2),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpace.sm),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpace.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  const SizedBox(height: AppSpace.xl),
+                  const Text('어느 끼니인가요?', style: AppText.headline),
+                  const SizedBox(height: AppSpace.sm),
                   Row(
                     children: [
-                      Text(
-                        '영양성분',
-                        style: AppText.headline.copyWith(fontSize: 16),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '탭하여 수정',
-                        style: AppText.micro.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: p.text3,
+                      for (final t in MealType.all) ...[
+                        Expanded(
+                          child: _MealOption(
+                            type: t,
+                            selected: _meal == t,
+                            onTap: () => setState(() => _meal = t),
+                          ),
                         ),
-                      ),
+                        if (t != MealType.all.last)
+                          const SizedBox(width: AppSpace.xs),
+                      ],
                     ],
                   ),
                   const SizedBox(height: AppSpace.md),
-                  _tapToEdit('탄수화물', _carbs, 150, p.carbs, (v) => _carbs = v),
-                  const SizedBox(height: AppSpace.sm),
-                  _tapToEdit(
-                    '단백질',
-                    _protein,
-                    80,
-                    p.protein,
-                    (v) => _protein = v,
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                  _tapToEdit('지방', _fat, 70, p.fat, (v) => _fat = v),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpace.lg),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpace.lg),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${MealType.emoji(_meal)} ${MealType.label(_meal)}',
-                        style: AppText.headline.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpace.xxs),
-                      _Pill(
-                        text: '자동',
-                        color: p.brand,
-                        background: p.brandSubtle,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [for (final t in MealType.all) _mealChip(t, p)],
-                  ),
-                  const SizedBox(height: AppSpace.md),
-                  FilledButton(
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('기록하기'),
+                  Text(
+                    '칼로리와 영양성분은 AI 추정치예요. 숫자를 눌러 고칠 수 있어요.',
+                    style: AppText.micro.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: p.text3,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: AppSpace.xxl),
         ],
       ),
-    );
-  }
-
-  Widget _tapToEdit(
-    String label,
-    int value,
-    int max,
-    Color color,
-    ValueChanged<int> onSave,
-  ) {
-    return InkWell(
-      onTap: () => _edit(label, value, onSave),
-      child: NutrientBar(label: label, value: value, max: max, color: color),
-    );
-  }
-
-  Widget _mealChip(String type, AppPalette p) {
-    final selected = _meal == type;
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        onTap: () => setState(() => _meal = type),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? p.brand : p.brandSubtle,
-            borderRadius: BorderRadius.circular(AppRadius.control),
-          ),
-          child: Column(
-            children: [
-              Text(MealType.emoji(type), style: const TextStyle(fontSize: 20)),
-              const SizedBox(height: 2),
-              Text(
-                MealType.label(type),
-                style: AppText.micro.copyWith(
-                  color: selected ? p.onBrand : p.text1,
-                ),
-              ),
-            ],
-          ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
+          AppSpace.screen,
+          AppSpace.xs,
+          AppSpace.screen,
+          AppSpace.md,
+        ),
+        child: FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text('${MealType.label(_meal)}에 기록하기'),
         ),
       ),
     );
   }
 
-  Widget _confidence(AppPalette p) {
+  Widget _confidence() {
     final (label, color) = switch (_result.confidence) {
-      'high' => ('높음', p.brand),
-      'medium' => ('보통', p.warning),
-      _ => ('낮음', p.over),
+      'high' => ('정확도 높음', AppBrand.neon),
+      'medium' => ('정확도 보통', AppBrand.spark),
+      _ => ('확인이 필요해요', const Color(0xFFFCA5A5)),
     };
     return _Pill(
-      text: '신뢰도: $label',
+      icon: Icons.auto_awesome_rounded,
+      text: label,
       color: color,
-      background: color.withAlpha(26),
+      background: Colors.black54,
+    );
+  }
+}
+
+class _MacroTile extends StatelessWidget {
+  const _MacroTile({
+    required this.label,
+    required this.grams,
+    required this.color,
+    required this.onTap,
+  });
+  final String label;
+  final int grams;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        label: '$label $grams그램, 탭하여 수정',
+        excludeSemantics: true,
+        child: Material(
+          color: color.withAlpha(26),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpace.sm,
+                vertical: AppSpace.md,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: AppText.micro.copyWith(
+                          fontSize: 12,
+                          color: p.text2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpace.xs),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$grams',
+                          style: AppText.numeric(AppText.title2),
+                        ),
+                        TextSpan(
+                          text: ' g',
+                          style: AppText.caption.copyWith(color: p.text2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MealOption extends StatelessWidget {
+  const _MealOption({
+    required this.type,
+    required this.selected,
+    required this.onTap,
+  });
+  final String type;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: selected ? p.brandSubtle : p.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          side: BorderSide(
+            color: selected ? p.brand : p.border,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+            child: Column(
+              children: [
+                MealBadge(type: type, size: 30),
+                const SizedBox(height: 6),
+                Text(
+                  MealType.label(type),
+                  style: AppText.label.copyWith(
+                    color: selected ? p.text1 : p.text2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _Pill extends StatelessWidget {
   const _Pill({
+    required this.icon,
     required this.text,
     required this.color,
     required this.background,
   });
+  final IconData icon;
   final String text;
   final Color color;
   final Color background;
@@ -343,14 +500,23 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
+        borderRadius: BorderRadius.circular(99),
       ),
-      child: Text(
-        text,
-        style: AppText.micro.copyWith(fontSize: 12, color: color),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              style: AppText.micro.copyWith(fontSize: 12, color: color),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -109,6 +109,29 @@ class AppPalette extends ThemeExtension<AppPalette> {
   }
 }
 
+/// 로고와 몰입형 화면(웰컴, 촬영)에 쓰는 브랜드 고정색. 테마와 무관하다.
+abstract final class AppBrand {
+  static const ink = Color(0xFF0E0F11);
+  static const inkTop = Color(0xFF1C2026);
+  static const neon = Color(0xFF6CF5B4);
+  static const green = Color(0xFF12B76A);
+  static const spark = Color(0xFFFFD84D);
+
+  /// 로고 배경과 같은 어두운 그라데이션
+  static const inkGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [inkTop, ink],
+  );
+
+  /// 뷰파인더·강조 버튼에 쓰는 초록 그라데이션
+  static const neonGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [neon, green],
+  );
+}
+
 /// 글자 스타일. 색은 넣지 않는다 (테마 기본색 또는 `.copyWith(color:)`).
 abstract final class AppText {
   static const _tabular = [FontFeature.tabularFigures()];

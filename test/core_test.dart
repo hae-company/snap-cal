@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:snap_cal/core/date_key.dart';
 import 'package:snap_cal/core/meal_type.dart';
 import 'package:snap_cal/core/nutrition_calc.dart';
+import 'package:snap_cal/data/providers.dart';
 import 'package:snap_cal/data/repositories/food_analysis_repository.dart';
+import 'package:snap_cal/features/log/calendar_screen.dart';
 
 void main() {
   group('MealType.detect', () {
@@ -71,5 +73,20 @@ void main() {
   test('extractJsonObject', () {
     expect(extractJsonObject('```json\n{"a":1}\n```'), '{"a":1}');
     expect(extractJsonObject('no json'), isNull);
+  });
+
+  test('연속 기록일: 오늘 기록이 없으면 어제부터 센다', () {
+    final now = DateTime(2026, 11, 9, 20);
+    expect(recordStreak({'2026-11-09', '2026-11-08', '2026-11-06'}, now), 2);
+    expect(recordStreak({'2026-11-08', '2026-11-07'}, now), 2);
+    expect(recordStreak({'2026-11-07'}, now), 0);
+  });
+
+  test('캘린더 날짜 상태', () {
+    expect(dayStatus(null, 2000), DayStatus.none);
+    expect(dayStatus(1700, 2000), DayStatus.under);
+    expect(dayStatus(1800, 2000), DayStatus.onTrack);
+    expect(dayStatus(2200, 2000), DayStatus.onTrack);
+    expect(dayStatus(2201, 2000), DayStatus.over);
   });
 }

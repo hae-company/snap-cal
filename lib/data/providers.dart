@@ -126,6 +126,25 @@ final topFoodsProvider = FutureProvider.family<List<(String, int)>, int>((
   return topFoods(records, limit);
 });
 
+/// 오늘(또는 오늘 기록이 아직 없으면 어제)부터 거꾸로 이어진 기록일 수
+final streakProvider = FutureProvider<int>((ref) async {
+  final records = await ref.watch(mealRepositoryProvider).all();
+  return recordStreak(records.map((r) => r.date).toSet(), DateTime.now());
+});
+
+int recordStreak(Set<String> dates, DateTime now) {
+  var day = DateTime(now.year, now.month, now.day);
+  if (!dates.contains(dateKey(day))) {
+    day = day.subtract(const Duration(days: 1));
+  }
+  var count = 0;
+  while (dates.contains(dateKey(day))) {
+    count++;
+    day = day.subtract(const Duration(days: 1));
+  }
+  return count;
+}
+
 Map<String, int> caloriesByDate(Iterable<FoodRecord> records) {
   final map = <String, int>{};
   for (final r in records) {
@@ -156,6 +175,7 @@ class MealActions {
   void _refresh() {
     _ref.invalidate(mealsInRangeProvider);
     _ref.invalidate(topFoodsProvider);
+    _ref.invalidate(streakProvider);
   }
 
   Future<void> add(FoodRecord record) async {
