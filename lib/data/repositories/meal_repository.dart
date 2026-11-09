@@ -15,6 +15,9 @@ abstract interface class MealRepository {
   Future<List<FoodRecord>> inRange(String from, String to);
 
   Future<int> insert(FoodRecord record);
+
+  /// id가 같은 기록을 바꾼다.
+  Future<void> update(FoodRecord record);
   Future<void> delete(int id);
   Future<void> deleteAll();
 }
@@ -69,6 +72,15 @@ class PrefsMealRepository implements MealRepository {
     );
     await _write(records);
     return nextId;
+  }
+
+  @override
+  Future<void> update(FoodRecord record) async {
+    final records = _read();
+    final i = records.indexWhere((r) => r.id == record.id);
+    if (i == -1) return;
+    records[i] = record;
+    await _write(records);
   }
 
   @override

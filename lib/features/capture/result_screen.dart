@@ -11,18 +11,23 @@ import '../../core/meal_type.dart';
 import '../../data/models/analysis_result.dart';
 import '../../data/models/food_record.dart';
 import '../../data/providers.dart';
-import '../../shared/meal_style.dart';
+import '../../shared/widgets/pickers.dart';
 import '../../shared/widgets/calorie_ring.dart';
+import '../../shared/widgets/input_dialog.dart';
 
 class ResultArgs {
   const ResultArgs({
     required this.result,
     required this.imagePath,
     this.presetMeal,
+    this.date,
   });
   final AnalysisResult result;
   final String imagePath;
   final String? presetMeal;
+
+  /// 지난 날짜에 기록할 때 (yyyy-MM-dd). 없으면 오늘.
+  final String? date;
 }
 
 class ResultScreen extends ConsumerStatefulWidget {
@@ -41,6 +46,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   late int _carbs = widget.args.result.carbs;
   late int _protein = widget.args.result.protein;
   late int _fat = widget.args.result.fat;
+
+  /// 위 값들은 1인분 기준. 화면과 저장 값은 [_servings]를 곱한다.
+  double _servings = 1;
+  int _s(int v) => (v * _servings).round();
+  int Function(int) get _base =>
+      (v) => (v / _servings).round();
   bool _saving = false;
 
   AnalysisResult get _result => widget.args.result;
@@ -51,33 +62,13 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     String unit,
     ValueChanged<int> onSave,
   ) async {
-    final ctrl = TextEditingController(text: '$current');
-    final value = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('$label 수정'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          autofocus: true,
-          style: AppText.numeric(AppText.title2),
-          decoration: InputDecoration(suffixText: unit),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, int.tryParse(ctrl.text) ?? 0),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
+    final value = await showNumberDialog(
+      context,
+      title: '$label 수정',
+      initial: current,
+      suffix: unit,
     );
-    ctrl.dispose();
-    if (value != null) setState(() => onSave(value));
+    if (value != null) setState(() => onSave(value.toInt()));
   }
 
   Future<void> _save() async {
@@ -86,13 +77,15 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         .read(mealActionsProvider)
         .add(
           FoodRecord(
-            date: dateKey(DateTime.now()),
+            date: widget.args.date ?? dateKey(DateTime.now()),
             mealType: _meal,
             foodName: _result.foodName,
-            calories: _calories,
-            carbs: _carbs,
-            protein: _protein,
-            fat: _fat,
+            calories: _s(_calories),
+            carbs: _s(_carbs),
+            protein: _s(_protein),
+            fat: _s(_fat),
+            servings: _servings,
+            source: RecordSource.ai,
             imagePath: widget.args.imagePath,
             description: _result.description,
           ),
@@ -102,7 +95,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${MealType.label(_meal)}에 ${formatKcal(_calories)} kcal를 기록했어요',
+          '${MealType.label(_meal)}에 ${formatKcal(_s(_calories))} kcal를 기록했어요',
         ),
       ),
     );
@@ -191,17 +184,21 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   const SizedBox(height: AppSpace.lg),
                   Semantics(
                     button: true,
-                    label: '칼로리 $_calories, 탭하여 수정',
+                    label: '칼로리 ${_s(_calories)}, 탭하여 수정',
                     excludeSemantics: true,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(AppRadius.control),
-                      onTap: () =>
-                          _edit('칼로리', _calories, 'kcal', (v) => _calories = v),
+                      onTap: () => _edit(
+                        '칼로리',
+                        _s(_calories),
+                        'kcal',
+                        (v) => _calories = _base(v),
+                      ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            formatKcal(_calories),
+                            formatKcal(_s(_calories)),
                             style: AppText.display.copyWith(
                               fontSize: 48,
                               color: p.text1,
@@ -231,34 +228,48 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   Text(
                     _result.totalCalories > 0 &&
                             _result.totalCalories != _result.calories
-                        ? '1인분 기준 · 사진 전체는 약 ${formatKcal(_result.totalCalories)} kcal'
-                        : '1인분 기준',
+                        ? '${formatServings(_servings)}인분 기준 · 사진 전체는 약 ${formatKcal(_result.totalCalories)} kcal'
+                        : '${formatServings(_servings)}인분 기준',
                     style: AppText.caption.copyWith(color: p.text2),
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                  ServingStepper(
+                    value: _servings,
+                    onChanged: (v) => setState(() => _servings = v),
                   ),
                   const SizedBox(height: AppSpace.lg),
                   Row(
                     children: [
                       _MacroTile(
                         label: '탄수화물',
-                        grams: _carbs,
+                        grams: _s(_carbs),
                         color: p.carbs,
-                        onTap: () =>
-                            _edit('탄수화물', _carbs, 'g', (v) => _carbs = v),
+                        onTap: () => _edit(
+                          '탄수화물',
+                          _s(_carbs),
+                          'g',
+                          (v) => _carbs = _base(v),
+                        ),
                       ),
                       const SizedBox(width: AppSpace.xs),
                       _MacroTile(
                         label: '단백질',
-                        grams: _protein,
+                        grams: _s(_protein),
                         color: p.protein,
-                        onTap: () =>
-                            _edit('단백질', _protein, 'g', (v) => _protein = v),
+                        onTap: () => _edit(
+                          '단백질',
+                          _s(_protein),
+                          'g',
+                          (v) => _protein = _base(v),
+                        ),
                       ),
                       const SizedBox(width: AppSpace.xs),
                       _MacroTile(
                         label: '지방',
-                        grams: _fat,
+                        grams: _s(_fat),
                         color: p.fat,
-                        onTap: () => _edit('지방', _fat, 'g', (v) => _fat = v),
+                        onTap: () =>
+                            _edit('지방', _s(_fat), 'g', (v) => _fat = _base(v)),
                       ),
                     ],
                   ),
@@ -293,20 +304,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   const SizedBox(height: AppSpace.xl),
                   const Text('어느 끼니인가요?', style: AppText.headline),
                   const SizedBox(height: AppSpace.sm),
-                  Row(
-                    children: [
-                      for (final t in MealType.all) ...[
-                        Expanded(
-                          child: _MealOption(
-                            type: t,
-                            selected: _meal == t,
-                            onTap: () => setState(() => _meal = t),
-                          ),
-                        ),
-                        if (t != MealType.all.last)
-                          const SizedBox(width: AppSpace.xs),
-                      ],
-                    ],
+                  MealPicker(
+                    value: _meal,
+                    onChanged: (t) => setState(() => _meal = t),
                   ),
                   const SizedBox(height: AppSpace.md),
                   Text(
@@ -428,55 +428,6 @@ class _MacroTile extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MealOption extends StatelessWidget {
-  const _MealOption({
-    required this.type,
-    required this.selected,
-    required this.onTap,
-  });
-  final String type;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: Material(
-        color: selected ? p.brandSubtle : p.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.control),
-          side: BorderSide(
-            color: selected ? p.brand : p.border,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.control),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-            child: Column(
-              children: [
-                MealBadge(type: type, size: 30),
-                const SizedBox(height: 6),
-                Text(
-                  MealType.label(type),
-                  style: AppText.label.copyWith(
-                    color: selected ? p.text1 : p.text2,
-                  ),
-                ),
-              ],
             ),
           ),
         ),

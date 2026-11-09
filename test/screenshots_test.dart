@@ -98,7 +98,9 @@ void main() {
 
   Future<void> shoot(WidgetTester tester, GlobalKey key, String name) async {
     // 이미지(로고) 디코딩이 끝날 시간을 준다
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 900));
     await tester.runAsync(() async {
       final boundary =
@@ -167,6 +169,29 @@ void main() {
       c.invalidate(mealsInRangeProvider);
       c.invalidate(topFoodsProvider);
       c.invalidate(streakProvider);
+      c.invalidate(quickFoodsProvider);
+      final today = dateKey(DateTime.now());
+      await tester.runAsync(() async {
+        await c.read(waterProvider(today).notifier).add(1250);
+        for (final (i, kg) in [
+          66.4,
+          66.1,
+          65.9,
+          66.0,
+          65.6,
+          65.2,
+          65.3,
+          64.9,
+        ].indexed) {
+          await c
+              .read(weightsProvider.notifier)
+              .record(
+                dateKey(DateTime.now().subtract(Duration(days: (7 - i) * 3))),
+                kg,
+              );
+        }
+        await c.read(targetWeightProvider.notifier).set(62);
+      });
       final router = c.read(routerProvider);
 
       for (final (route, name) in [
@@ -180,7 +205,37 @@ void main() {
           () => Future<void>.delayed(const Duration(milliseconds: 50)),
         );
         await shoot(tester, key, '${name}_$suffix');
+        // 아래쪽도 한 장 더
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, -700));
+        await shoot(tester, key, '${name}b_$suffix');
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, 3000));
       }
+
+      // 검색해서 추가 (음식 목록 파일을 미리 읽어 둔다)
+      await tester.runAsync(() => c.read(foodCatalogRepositoryProvider).all());
+      router.push('${Routes.add}?meal=lunch');
+      await shoot(tester, key, '12_add_$suffix');
+      await tester.enterText(find.byType(TextField).first, 'ㅊㅋ');
+      await shoot(tester, key, '13_search_$suffix');
+      await tester.tap(find.text('양념치킨'));
+      await shoot(tester, key, '14_portion_$suffix');
+      Navigator.of(tester.element(find.text('양념치킨').last)).pop();
+      await tester.pumpAndSettle();
+      router.pop();
+      await tester.pumpAndSettle();
+
+      // 기록 수정 시트
+      router.go(Routes.today);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('김치찌개 정식'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('김치찌개 정식'));
+      await shoot(tester, key, '15_edit_$suffix');
+      Navigator.of(tester.element(find.text('기록 수정'))).pop();
+      await tester.pumpAndSettle();
 
       router.push(Routes.capture);
       await shoot(tester, key, '10_capture_$suffix');

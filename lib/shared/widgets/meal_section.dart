@@ -16,13 +16,21 @@ class MealSection extends StatelessWidget {
     required this.mealType,
     required this.records,
     required this.onDelete,
-    this.onAdd,
+    this.onTap,
+    this.onAddPhoto,
+    this.onAddSearch,
   });
 
   final String mealType;
   final List<FoodRecord> records;
   final ValueChanged<FoodRecord> onDelete;
-  final VoidCallback? onAdd;
+
+  /// 음식을 누르면 (수정 시트 등)
+  final ValueChanged<FoodRecord>? onTap;
+
+  /// 둘 다 없으면 추가 버튼을 숨긴다
+  final VoidCallback? onAddPhoto;
+  final VoidCallback? onAddSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -66,8 +74,12 @@ class MealSection extends StatelessWidget {
             ),
           ),
           for (final r in records)
-            FoodTile(record: r, onDelete: () => onDelete(r)),
-          if (onAdd != null)
+            FoodTile(
+              record: r,
+              onDelete: () => onDelete(r),
+              onTap: onTap == null ? null : () => onTap!(r),
+            ),
+          if (onAddPhoto != null || onAddSearch != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpace.md,
@@ -75,11 +87,29 @@ class MealSection extends StatelessWidget {
                 AppSpace.md,
                 AppSpace.md,
               ),
-              child: _AddButton(
-                label: records.isEmpty
-                    ? '${MealType.label(mealType)} 기록하기'
-                    : '더 추가하기',
-                onTap: onAdd!,
+              child: Row(
+                children: [
+                  if (onAddPhoto != null)
+                    Expanded(
+                      child: _AddButton(
+                        icon: Icons.photo_camera_rounded,
+                        label: records.isEmpty
+                            ? '${MealType.label(mealType)} 찍기'
+                            : '사진 추가',
+                        onTap: onAddPhoto!,
+                      ),
+                    ),
+                  if (onAddPhoto != null && onAddSearch != null)
+                    const SizedBox(width: AppSpace.xs),
+                  if (onAddSearch != null)
+                    Expanded(
+                      child: _AddButton(
+                        icon: Icons.search_rounded,
+                        label: '검색해서 추가',
+                        onTap: onAddSearch!,
+                      ),
+                    ),
+                ],
               ),
             )
           else if (records.isEmpty)
@@ -105,9 +135,15 @@ class MealSection extends StatelessWidget {
 
 /// 음식 한 줄. 왼쪽으로 밀면 삭제.
 class FoodTile extends StatefulWidget {
-  const FoodTile({super.key, required this.record, required this.onDelete});
+  const FoodTile({
+    super.key,
+    required this.record,
+    required this.onDelete,
+    this.onTap,
+  });
   final FoodRecord record;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
   @override
   State<FoodTile> createState() => _FoodTileState();
@@ -151,59 +187,62 @@ class _FoodTileState extends State<FoodTile> {
       ),
       child: Semantics(
         customSemanticsActions: {CustomSemanticsAction(label: '삭제'): onDelete},
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpace.md,
-            vertical: AppSpace.xs,
-          ),
-          child: Row(
-            children: [
-              FoodThumbnail(path: r.imagePath, size: 48),
-              const SizedBox(width: AppSpace.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      r.foodName,
-                      style: AppText.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Text.rich(
-                      TextSpan(
-                        style: _macro(p),
-                        children: [
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: _Dot(p.carbs),
-                          ),
-                          TextSpan(text: ' ${r.carbs}g  '),
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: _Dot(p.protein),
-                          ),
-                          TextSpan(text: ' ${r.protein}g  '),
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: _Dot(p.fat),
-                          ),
-                          TextSpan(text: ' ${r.fat}g'),
-                        ],
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpace.md,
+              vertical: AppSpace.xs,
+            ),
+            child: Row(
+              children: [
+                FoodThumbnail(path: r.imagePath, size: 48),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        r.foodName,
+                        style: AppText.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                      const SizedBox(height: 3),
+                      Text.rich(
+                        TextSpan(
+                          style: _macro(p),
+                          children: [
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: _Dot(p.carbs),
+                            ),
+                            TextSpan(text: ' ${r.carbs}g  '),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: _Dot(p.protein),
+                            ),
+                            TextSpan(text: ' ${r.protein}g  '),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: _Dot(p.fat),
+                            ),
+                            TextSpan(text: ' ${r.fat}g'),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                formatKcal(r.calories),
-                style: AppText.numeric(AppText.label),
-              ),
-              Text(' kcal', style: AppText.micro.copyWith(color: p.text3)),
-            ],
+                Text(
+                  formatKcal(r.calories),
+                  style: AppText.numeric(AppText.label),
+                ),
+                Text(' kcal', style: AppText.micro.copyWith(color: p.text3)),
+              ],
+            ),
           ),
         ),
       ),
@@ -228,7 +267,12 @@ class _Dot extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.label, required this.onTap});
+  const _AddButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
   final String label;
   final VoidCallback onTap;
 
@@ -246,7 +290,7 @@ class _AddButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_rounded, size: 18, color: p.brand),
+              Icon(icon, size: 18, color: p.brand),
               const SizedBox(width: AppSpace.xxs),
               Text(label, style: AppText.label.copyWith(color: p.brand)),
             ],

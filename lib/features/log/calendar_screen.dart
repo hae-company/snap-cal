@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../app/router.dart';
 import '../../app/theme/tokens.dart';
 import '../../core/date_key.dart';
 import '../../core/meal_type.dart';
@@ -10,6 +12,7 @@ import '../../data/providers.dart';
 import '../../shared/widgets/calorie_ring.dart';
 import '../../shared/widgets/macro_summary.dart';
 import '../../shared/widgets/meal_section.dart';
+import '../food_entry/food_edit_sheet.dart';
 
 /// 목표 대비 하루 상태 (설계서 7.2 캘린더 날짜 색)
 enum DayStatus { none, under, onTrack, over }
@@ -223,9 +226,36 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   mealType: type,
                   records: records.where((r) => r.mealType == type).toList(),
                   onDelete: (r) => ref.read(mealActionsProvider).delete(r.id!),
+                  onTap: (r) => showFoodEditSheet(context, r),
                 ),
                 const SizedBox(height: AppSpace.sm),
               ],
+          ],
+          if (!_selected.isAfter(DateTime.now())) ...[
+            const SizedBox(height: AppSpace.xs),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push(
+                      '${Routes.capture}?date=${dateKey(_selected)}',
+                    ),
+                    icon: Icon(Icons.photo_camera_rounded, color: p.brand),
+                    label: const Text('사진으로 추가'),
+                  ),
+                ),
+                const SizedBox(width: AppSpace.xs),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push(
+                      '${Routes.add}?date=${dateKey(_selected)}',
+                    ),
+                    icon: Icon(Icons.search_rounded, color: p.brand),
+                    label: const Text('검색해서 추가'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
       ),

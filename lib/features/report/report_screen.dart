@@ -7,6 +7,7 @@ import '../../app/theme/tokens.dart';
 import '../../core/date_key.dart';
 import '../../data/providers.dart';
 import '../../shared/widgets/calorie_ring.dart';
+import 'weight_section.dart';
 
 class ReportScreen extends ConsumerWidget {
   const ReportScreen({super.key});
@@ -163,6 +164,8 @@ class ReportScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: AppSpace.sm),
+          const WeightSection(),
           const SizedBox(height: AppSpace.sm),
           _Section(
             title: '탄단지 비율',

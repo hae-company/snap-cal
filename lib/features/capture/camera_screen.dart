@@ -17,10 +17,13 @@ import 'result_screen.dart';
 
 /// 촬영 → 분석. 테마와 상관없이 어두운 몰입형 화면.
 class CameraScreen extends ConsumerStatefulWidget {
-  const CameraScreen({super.key, this.presetMeal});
+  const CameraScreen({super.key, this.presetMeal, this.date});
 
   /// 오늘 화면의 "아침 기록하기" 등에서 들어오면 끼니를 미리 고정한다.
   final String? presetMeal;
+
+  /// 지난 날짜에 기록할 때 (yyyy-MM-dd)
+  final String? date;
 
   @override
   ConsumerState<CameraScreen> createState() => _CameraScreenState();
@@ -74,6 +77,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             result: result,
             imagePath: picked.path,
             presetMeal: widget.presetMeal,
+            date: widget.date,
           ),
         );
         return;
@@ -188,7 +192,19 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                             _ShutterButton(
                               onTap: () => _pick(ImageSource.camera),
                             ),
-                            const SizedBox(width: 64),
+                            _RoundAction(
+                              icon: Icons.search_rounded,
+                              label: '검색',
+                              onTap: () => context.pushReplacement(
+                                Uri(
+                                  path: Routes.add,
+                                  queryParameters: {
+                                    'meal': ?widget.presetMeal,
+                                    'date': ?widget.date,
+                                  },
+                                ).toString(),
+                              ),
+                            ),
                           ],
                         ),
                       ),

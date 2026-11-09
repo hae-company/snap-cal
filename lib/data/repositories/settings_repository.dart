@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,6 +72,34 @@ class SettingsRepository {
   Future<void> setThemeMode(ThemeMode m) =>
       _prefs.setString(_kThemeMode, m.name);
 
+  // 물 목표 (ml)
+  static const _kWaterGoal = 'water_goal';
+  int get waterGoal => _prefs.getInt(_kWaterGoal) ?? 2000;
+  Future<void> setWaterGoal(int ml) => _prefs.setInt(_kWaterGoal, ml);
+
+  // 목표 체중 (kg, 없으면 null)
+  static const _kTargetWeight = 'target_weight';
+  double? get targetWeight => _prefs.getDouble(_kTargetWeight);
+  Future<void> setTargetWeight(double? kg) => kg == null
+      ? _prefs.remove(_kTargetWeight)
+      : _prefs.setDouble(_kTargetWeight, kg);
+
+  // 끼니 알림
+  static const _kReminders = 'meal_reminders';
+  List<MealReminder> get reminders {
+    final raw = _prefs.getString(_kReminders);
+    if (raw == null) return MealReminder.defaults;
+    final list = jsonDecode(raw) as List;
+    return [
+      for (final e in list) MealReminder.fromMap(e as Map<String, dynamic>),
+    ];
+  }
+
+  Future<void> setReminders(List<MealReminder> list) => _prefs.setString(
+    _kReminders,
+    jsonEncode([for (final r in list) r.toMap()]),
+  );
+
   // 끼니 시간대 (시 단위, [시작, 끝))
   Map<String, List<int>> get mealTimes => {
     for (final e in _mealTimeKeys.entries)
@@ -87,4 +117,66 @@ class SettingsRepository {
       await _prefs.setInt(e.value.$2, range[1]);
     }
   }
+}
+
+/// 끼니 기록 알림 (매일 같은 시각)
+class MealReminder {
+  const MealReminder({
+    required this.mealType,
+    required this.enabled,
+    required this.hour,
+    required this.minute,
+  });
+
+  final String mealType;
+  final bool enabled;
+  final int hour;
+  final int minute;
+
+  /// 처음에는 모두 꺼 둔다. 사용자가 켤 때 알림 권한을 묻는다.
+  static const defaults = [
+    MealReminder(
+      mealType: MealType.breakfast,
+      enabled: false,
+      hour: 8,
+      minute: 0,
+    ),
+    MealReminder(
+      mealType: MealType.lunch,
+      enabled: false,
+      hour: 12,
+      minute: 30,
+    ),
+    MealReminder(
+      mealType: MealType.dinner,
+      enabled: false,
+      hour: 18,
+      minute: 30,
+    ),
+  ];
+
+  MealReminder copyWith({bool? enabled, int? hour, int? minute}) =>
+      MealReminder(
+        mealType: mealType,
+        enabled: enabled ?? this.enabled,
+        hour: hour ?? this.hour,
+        minute: minute ?? this.minute,
+      );
+
+  Map<String, dynamic> toMap() => {
+    'meal': mealType,
+    'on': enabled,
+    'h': hour,
+    'm': minute,
+  };
+
+  factory MealReminder.fromMap(Map<String, dynamic> m) => MealReminder(
+    mealType: m['meal'] as String,
+    enabled: m['on'] as bool,
+    hour: m['h'] as int,
+    minute: m['m'] as int,
+  );
+
+  String get timeLabel =>
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 }

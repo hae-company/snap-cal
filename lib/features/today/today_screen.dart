@@ -5,13 +5,16 @@ import 'package:intl/intl.dart';
 
 import '../../app/router.dart';
 import '../../app/theme/tokens.dart';
+import '../../core/daily_tip.dart';
 import '../../core/date_key.dart';
 import '../../core/meal_type.dart';
 import '../../data/providers.dart';
+import '../../features/food_entry/food_edit_sheet.dart';
 import '../../shared/widgets/brand.dart';
 import '../../shared/widgets/calorie_ring.dart';
 import '../../shared/widgets/macro_summary.dart';
 import '../../shared/widgets/meal_section.dart';
+import '../../shared/widgets/water_card.dart';
 
 /// 홈. "지금 얼마나 남았지?"에 바로 답한다.
 class TodayScreen extends ConsumerWidget {
@@ -25,11 +28,24 @@ class TodayScreen extends ConsumerWidget {
     final records =
         ref.watch(mealsByDateProvider(dateKey(now))).value ?? const [];
     final streak = ref.watch(streakProvider).value ?? 0;
+    final today = dateKey(now);
+    final water = ref.watch(waterProvider(today));
+    final waterGoal = ref.watch(waterGoalProvider);
 
     final eaten = records.fold(0, (s, r) => s + r.calories);
     final carbs = records.fold(0, (s, r) => s + r.carbs);
     final protein = records.fold(0, (s, r) => s + r.protein);
     final fat = records.fold(0, (s, r) => s + r.fat);
+    final tip = dailyTip(
+      now: now,
+      recordCount: records.length,
+      kcal: eaten,
+      protein: protein,
+      fat: fat,
+      goals: goals,
+      waterMl: water,
+      waterGoalMl: waterGoal,
+    );
 
     return SafeArea(
       bottom: false,
@@ -106,6 +122,10 @@ class TodayScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: AppSpace.sm),
+          TipCard(tip: tip),
+          const SizedBox(height: AppSpace.sm),
+          WaterCard(date: today),
           const SizedBox(height: AppSpace.xl),
           Text('오늘의 식사', style: AppText.title2.copyWith(fontSize: 18)),
           const SizedBox(height: AppSpace.sm),
@@ -114,7 +134,9 @@ class TodayScreen extends ConsumerWidget {
               mealType: type,
               records: records.where((r) => r.mealType == type).toList(),
               onDelete: (r) => ref.read(mealActionsProvider).delete(r.id!),
-              onAdd: () => context.push('${Routes.capture}?meal=$type'),
+              onTap: (r) => showFoodEditSheet(context, r),
+              onAddPhoto: () => context.push('${Routes.capture}?meal=$type'),
+              onAddSearch: () => context.push('${Routes.add}?meal=$type'),
             ),
             const SizedBox(height: AppSpace.sm),
           ],
@@ -180,6 +202,63 @@ class _StreakChip extends StatelessWidget {
           Text(
             '$days일 연속',
             style: AppText.micro.copyWith(fontSize: 12, color: p.warning),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 오늘의 한마디
+class TipCard extends StatelessWidget {
+  const TipCard({super.key, required this.tip});
+  final DailyTip tip;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final (IconData icon, Color color) = switch (tip.kind) {
+      TipKind.over => (Icons.self_improvement_rounded, p.over),
+      TipKind.protein => (Icons.egg_alt_rounded, p.protein),
+      TipKind.water => (Icons.water_drop_rounded, p.carbs),
+      TipKind.fat => (Icons.opacity_rounded, p.fat),
+      TipKind.almost => (Icons.flag_rounded, p.warning),
+      TipKind.start => (Icons.wb_sunny_rounded, p.brand),
+      TipKind.good => (Icons.auto_awesome_rounded, p.brand),
+    };
+    return Container(
+      padding: const EdgeInsets.all(AppSpace.md),
+      decoration: BoxDecoration(
+        color: color.withAlpha(22),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withAlpha(40),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tip.title, style: AppText.label),
+                const SizedBox(height: 2),
+                Text(
+                  tip.body,
+                  style: AppText.caption.copyWith(
+                    fontWeight: FontWeight.w400,
+                    color: p.text2,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -8,11 +8,14 @@ import 'package:snap_cal/app/theme/tokens.dart';
 import 'package:snap_cal/core/date_key.dart';
 import 'package:snap_cal/data/models/food_record.dart';
 import 'package:snap_cal/data/providers.dart';
+import 'package:snap_cal/data/repositories/settings_repository.dart';
+import 'package:snap_cal/data/services/reminder_service.dart';
 
 Future<ProviderContainer> pumpApp(
   WidgetTester tester,
-  Map<String, Object> prefs,
-) async {
+  Map<String, Object> prefs, {
+  List<dynamic> overrides = const [],
+}) async {
   // 아이폰 크기 화면
   tester.view.physicalSize = const Size(1170, 2532);
   tester.view.devicePixelRatio = 3;
@@ -21,7 +24,10 @@ Future<ProviderContainer> pumpApp(
   SharedPreferences.setMockInitialValues(prefs);
   final sp = await SharedPreferences.getInstance();
   final container = ProviderContainer(
-    overrides: [sharedPreferencesProvider.overrideWithValue(sp)],
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(sp),
+      ...overrides.cast(),
+    ],
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -40,6 +46,17 @@ FoodRecord lunch(String name, int kcal) => FoodRecord(
   protein: 20,
   fat: 15,
 );
+
+/// [finder]가 화면 가운데 오도록 내린다 (아래쪽 탭 바에 가리지 않게)
+Future<void> scrollTo(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(
+    finder,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  Scrollable.ensureVisible(tester.element(finder), alignment: 0.5);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   setUpAll(() => initializeDateFormatting('ko'));
@@ -79,13 +96,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1,400'), findsOneWidget); // 남은 칼로리
-    expect(find.text('비빔밥'), findsOneWidget);
     expect(find.text('1일 연속'), findsOneWidget);
+    await scrollTo(tester, find.text('비빔밥'));
+    expect(find.text('비빔밥'), findsOneWidget);
 
     await tester.drag(find.text('비빔밥'), const Offset(-600, 0));
     await tester.pumpAndSettle();
     expect(find.text('비빔밥'), findsNothing);
-    expect(find.text('2,000'), findsWidgets);
+    expect(c.read(mealRepositoryProvider).all(), completion(isEmpty));
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
+    await tester.pumpAndSettle();
+    expect(find.text('2,000'), findsWidgets); // 다시 위로 올리면 남은 칼로리가 목표 그대로
   });
 
   testWidgets('탭 이동과 다크 테마 전환', (tester) async {
@@ -149,4 +170,139 @@ void main() {
     expect(c.read(goalsProvider).kcal, 1800);
     expect(c.read(goalsProvider).carbsG, 225);
   });
+
+  testWidgets('검색해서 추가: 초성 검색 → 2인분 → 아침에 기록', (tester) async {
+    final c = await pumpApp(tester, {'onboarded': true});
+    await scrollTo(tester, find.text('검색해서 추가').first);
+    await tester.tap(find.text('검색해서 추가').first);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'ㄱㅊㅉㄱ');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('김치찌개').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('2'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('아침에 추가'));
+    await tester.pumpAndSettle();
+
+    final saved = await c.read(mealRepositoryProvider).all();
+    expect(saved.single.foodName, '김치찌개');
+    expect(saved.single.calories, 500);
+    expect(saved.single.servings, 2);
+    expect(saved.single.mealType, 'breakfast');
+    expect(find.text('오늘의 식사'), findsOneWidget);
+  });
+
+  testWidgets('기록을 눌러 양을 반으로 바꾼다', (tester) async {
+    final c = await pumpApp(tester, {'onboarded': true});
+    await c.read(mealActionsProvider).add(lunch('비빔밥', 600));
+    await tester.pumpAndSettle();
+
+    await scrollTo(tester, find.text('비빔밥'));
+    await tester.tap(find.text('비빔밥'));
+    await tester.pumpAndSettle();
+    expect(find.text('기록 수정'), findsOneWidget);
+    await tester.tap(find.text('0.5'));
+    await tester.pump();
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    final r = (await c.read(mealRepositoryProvider).all()).single;
+    expect(r.calories, 300);
+    expect(r.servings, 0.5);
+  });
+
+  testWidgets('물 한 잔씩 추가', (tester) async {
+    final c = await pumpApp(tester, {'onboarded': true});
+    await tester.scrollUntilVisible(
+      find.byTooltip('물 한 잔 추가'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byTooltip('물 한 잔 추가'));
+    await tester.tap(find.byTooltip('물 한 잔 추가'));
+    await tester.pumpAndSettle();
+    expect(c.read(waterProvider(dateKey(DateTime.now()))), 500);
+    expect(find.textContaining('500', findRichText: true), findsWidgets);
+  });
+
+  testWidgets('체중 기록', (tester) async {
+    final c = await pumpApp(tester, {'onboarded': true});
+    await tester.tap(find.text('리포트'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('오늘 체중 기록'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('오늘 체중 기록'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '64.5');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(c.read(weightsProvider).single.$2, 64.5);
+    expect(find.text('64.5'), findsOneWidget);
+  });
+
+  testWidgets('끼니 알림 켜기: 권한을 묻고 예약한다', (tester) async {
+    final fake = FakeReminders();
+    final c = await pumpApp(
+      tester,
+      {'onboarded': true},
+      overrides: [reminderServiceProvider.overrideWithValue(fake)],
+    );
+    await tester.tap(find.text('MY'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byType(Switch).first,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+
+    expect(fake.asked, 1);
+    expect(fake.applied.last.first.enabled, isTrue);
+    expect(c.read(remindersProvider).first.enabled, isTrue);
+  });
+
+  testWidgets('알림 권한을 거절하면 켜지지 않는다', (tester) async {
+    final fake = FakeReminders(granted: false);
+    final c = await pumpApp(
+      tester,
+      {'onboarded': true},
+      overrides: [reminderServiceProvider.overrideWithValue(fake)],
+    );
+    await tester.tap(find.text('MY'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byType(Switch).first,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+
+    expect(c.read(remindersProvider).first.enabled, isFalse);
+    expect(fake.applied, isEmpty);
+    expect(find.textContaining('알림 권한이 꺼져 있어요'), findsOneWidget);
+  });
+}
+
+class FakeReminders implements ReminderService {
+  FakeReminders({this.granted = true});
+  final bool granted;
+  int asked = 0;
+  final applied = <List<MealReminder>>[];
+
+  @override
+  Future<bool> requestPermission() async {
+    asked++;
+    return granted;
+  }
+
+  @override
+  Future<void> apply(List<MealReminder> reminders) async =>
+      applied.add(reminders);
 }

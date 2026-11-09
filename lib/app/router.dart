@@ -7,6 +7,7 @@ import '../core/meal_type.dart';
 import '../data/providers.dart';
 import '../features/capture/camera_screen.dart';
 import '../features/capture/result_screen.dart';
+import '../features/food_entry/add_food_screen.dart';
 import '../features/log/calendar_screen.dart';
 import '../features/my/my_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
@@ -24,6 +25,9 @@ abstract final class Routes {
   /// 전체 화면 촬영. `?meal=lunch`로 끼니를 미리 고를 수 있다.
   static const capture = '/capture';
   static const result = '/result';
+
+  /// 검색·직접 입력으로 기록. `?meal=lunch&date=2026-11-09`
+  static const add = '/add';
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -49,10 +53,31 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.capture,
         pageBuilder: (_, state) {
           final meal = state.uri.queryParameters['meal'];
+          final date = state.uri.queryParameters['date'];
           return MaterialPage(
             fullscreenDialog: true,
             child: CameraScreen(
               presetMeal: MealType.all.contains(meal) ? meal : null,
+              date: date != null && DateTime.tryParse(date) != null
+                  ? date
+                  : null,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: Routes.add,
+        pageBuilder: (_, state) {
+          final q = state.uri.queryParameters;
+          final meal = q['meal'];
+          final date = q['date'];
+          return MaterialPage(
+            fullscreenDialog: true,
+            child: AddFoodScreen(
+              presetMeal: MealType.all.contains(meal) ? meal : null,
+              date: date != null && DateTime.tryParse(date) != null
+                  ? date
+                  : null,
             ),
           );
         },

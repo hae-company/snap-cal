@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/tokens.dart';
 import '../../core/meal_type.dart';
 import '../../core/nutrition_calc.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/settings_repository.dart';
+import '../../data/services/export_service.dart';
 import '../../data/repositories/food_analysis_repository.dart';
 import '../../shared/meal_style.dart';
 import '../../shared/widgets/brand.dart';
 import '../../shared/widgets/calorie_ring.dart';
+import '../../shared/widgets/input_dialog.dart';
+import '../../shared/widgets/number_field.dart';
 import '../../shared/widgets/sheet_handle.dart';
 import 'policy_texts.dart';
 
@@ -23,13 +26,7 @@ class MyScreen extends ConsumerWidget {
     final p = context.palette;
     final apiKey = ref.watch(apiKeyProvider);
     final themeMode = ref.watch(themeModeProvider);
-    final mealTimes = ref.watch(mealTimesProvider);
-
-    String range(String type) {
-      final r = mealTimes[type]!;
-      String hh(int h) => '${h.toString().padLeft(2, '0')}:00';
-      return '${hh(r[0])} – ${hh(r[1])}';
-    }
+    final reminders = ref.watch(remindersProvider);
 
     return SafeArea(
       bottom: false,
@@ -46,24 +43,8 @@ class MyScreen extends ConsumerWidget {
           const _GoalCard(),
           const SizedBox(height: AppSpace.xl),
 
-          const _GroupTitle('끼니 시간'),
-          _Group([
-            for (final t in [
-              MealType.breakfast,
-              MealType.lunch,
-              MealType.dinner,
-            ])
-              _Tile(
-                leading: MealBadge(type: t, size: 28),
-                title: MealType.label(t),
-                value: range(t),
-              ),
-            _Tile(
-              leading: const MealBadge(type: MealType.snack, size: 28),
-              title: '간식',
-              value: '그 외 시간',
-            ),
-          ]),
+          const _GroupTitle('끼니 알림'),
+          _Group([for (final r in reminders) _ReminderTile(reminder: r)]),
           const SizedBox(height: AppSpace.lg),
 
           const _GroupTitle('화면'),
@@ -148,7 +129,13 @@ class MyScreen extends ConsumerWidget {
           ]),
           const SizedBox(height: AppSpace.lg),
 
+          const _GroupTitle('데이터'),
           _Group([
+            _Tile(
+              leading: _IconBox(Icons.ios_share_rounded, p.brand),
+              title: '식단 기록 내보내기 (CSV)',
+              onTap: () => _export(context, ref),
+            ),
             _Tile(
               leading: _IconBox(Icons.delete_outline_rounded, p.over),
               title: '기록 전체 삭제',
@@ -168,13 +155,31 @@ class MyScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _editApiKey(BuildContext context, WidgetRef ref) async {
-    final ctrl = TextEditingController(text: ref.read(apiKeyProvider));
-    final saved = await showDialog<String>(
-      context: context,
-      builder: (_) => _ApiKeyDialog(controller: ctrl),
+  Future<void> _export(BuildContext context, WidgetRef ref) async {
+    final records = await ref.read(mealRepositoryProvider).all();
+    if (!context.mounted) return;
+    if (records.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('내보낼 기록이 아직 없어요')));
+      return;
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    await shareMealsCsv(
+      records,
+      origin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
     );
-    ctrl.dispose();
+  }
+
+  Future<void> _editApiKey(BuildContext context, WidgetRef ref) async {
+    final saved = await showInputDialog(
+      context,
+      title: 'Gemini API 키',
+      message: 'Google AI Studio에서 무료로 발급받을 수 있어요',
+      hint: 'API 키 입력',
+      initial: ref.read(apiKeyProvider),
+      obscure: true,
+    );
     if (saved != null) {
       await ref.read(apiKeyProvider.notifier).set(saved.trim());
     }
@@ -381,6 +386,15 @@ class _GoalCard extends ConsumerWidget {
                     macro('지방', g.fatG, AppPalette.dark.fat),
                   ],
                 ),
+                const SizedBox(height: AppSpace.md),
+                Text(
+                  [
+                    '물 ${formatKcal(ref.watch(waterGoalProvider))}ml',
+                    if (ref.watch(targetWeightProvider) case final t?)
+                      '목표 체중 ${t.toStringAsFixed(1)}kg',
+                  ].join('  ·  '),
+                  style: AppText.caption.copyWith(color: dim),
+                ),
               ],
             ),
           ),
@@ -413,10 +427,16 @@ class _GoalEditorState extends ConsumerState<_GoalEditor> {
   late final _carbs = TextEditingController(text: '${_g.carbsG}');
   late final _protein = TextEditingController(text: '${_g.proteinG}');
   late final _fat = TextEditingController(text: '${_g.fatG}');
+  late final _water = TextEditingController(
+    text: '${ref.read(waterGoalProvider)}',
+  );
+  late final _target = TextEditingController(
+    text: ref.read(targetWeightProvider)?.toStringAsFixed(1) ?? '',
+  );
 
   @override
   void dispose() {
-    for (final c in [_kcal, _carbs, _protein, _fat]) {
+    for (final c in [_kcal, _carbs, _protein, _fat, _water, _target]) {
       c.dispose();
     }
     super.dispose();
@@ -442,6 +462,13 @@ class _GoalEditorState extends ConsumerState<_GoalEditor> {
             fatG: int.tryParse(_fat.text) ?? _g.fatG,
           ),
         );
+    await ref
+        .read(waterGoalProvider.notifier)
+        .set((int.tryParse(_water.text) ?? 2000).clamp(250, 6000));
+    final target = double.tryParse(_target.text);
+    await ref
+        .read(targetWeightProvider.notifier)
+        .set(target != null && target >= 20 && target <= 300 ? target : null);
     if (!mounted) return;
     Navigator.pop(context);
     ScaffoldMessenger.of(
@@ -468,7 +495,7 @@ class _GoalEditorState extends ConsumerState<_GoalEditor> {
             const SheetHandle(),
             const Text('하루 목표 수정', style: AppText.title2),
             const SizedBox(height: AppSpace.lg),
-            _NumberField(
+            NumberField(
               label: '칼로리',
               controller: _kcal,
               unit: 'kcal',
@@ -485,7 +512,7 @@ class _GoalEditorState extends ConsumerState<_GoalEditor> {
             Row(
               children: [
                 Expanded(
-                  child: _NumberField(
+                  child: NumberField(
                     label: '탄수화물',
                     controller: _carbs,
                     unit: 'g',
@@ -494,7 +521,7 @@ class _GoalEditorState extends ConsumerState<_GoalEditor> {
                 ),
                 const SizedBox(width: AppSpace.xs),
                 Expanded(
-                  child: _NumberField(
+                  child: NumberField(
                     label: '단백질',
                     controller: _protein,
                     unit: 'g',
@@ -503,7 +530,7 @@ class _GoalEditorState extends ConsumerState<_GoalEditor> {
                 ),
                 const SizedBox(width: AppSpace.xs),
                 Expanded(
-                  child: _NumberField(
+                  child: NumberField(
                     label: '지방',
                     controller: _fat,
                     unit: 'g',
@@ -513,110 +540,35 @@ class _GoalEditorState extends ConsumerState<_GoalEditor> {
               ],
             ),
             const SizedBox(height: AppSpace.xl),
+            const SizedBox(height: AppSpace.md),
+            Row(
+              children: [
+                Expanded(
+                  child: NumberField(
+                    label: '물',
+                    controller: _water,
+                    unit: 'ml',
+                    color: p.carbs,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.xs),
+                Expanded(
+                  child: NumberField(
+                    label: '목표 체중',
+                    controller: _target,
+                    unit: 'kg',
+                    color: p.text3,
+                    decimal: true,
+                    hint: '선택',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.xl),
             FilledButton(onPressed: _save, child: const Text('저장')),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _NumberField extends StatelessWidget {
-  const _NumberField({
-    required this.label,
-    required this.controller,
-    required this.unit,
-    required this.color,
-  });
-  final String label;
-  final TextEditingController controller;
-  final String unit;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 6),
-            Text(label, style: AppText.caption.copyWith(color: p.text2)),
-          ],
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: AppText.numeric(AppText.headline),
-          decoration: InputDecoration(suffixText: unit, isDense: true),
-        ),
-      ],
-    );
-  }
-}
-
-class _ApiKeyDialog extends StatefulWidget {
-  const _ApiKeyDialog({required this.controller});
-  final TextEditingController controller;
-
-  @override
-  State<_ApiKeyDialog> createState() => _ApiKeyDialogState();
-}
-
-class _ApiKeyDialogState extends State<_ApiKeyDialog> {
-  bool _visible = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return AlertDialog(
-      title: const Text('Gemini API 키'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Google AI Studio에서 무료로 발급받을 수 있어요',
-            style: AppText.caption.copyWith(color: p.text2),
-          ),
-          const SizedBox(height: AppSpace.sm),
-          TextField(
-            controller: widget.controller,
-            obscureText: !_visible,
-            autocorrect: false,
-            decoration: InputDecoration(
-              hintText: 'API 키 입력',
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _visible
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                ),
-                tooltip: _visible ? '숨기기' : '보기',
-                onPressed: () => setState(() => _visible = !_visible),
-              ),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, widget.controller.text),
-          child: const Text('확인'),
-        ),
-      ],
     );
   }
 }
@@ -730,4 +682,72 @@ class _IconBox extends StatelessWidget {
     ),
     child: Icon(icon, size: 16, color: color),
   );
+}
+
+/// 끼니 알림 한 줄: 시간 (눌러서 변경) + 켜기/끄기
+class _ReminderTile extends ConsumerWidget {
+  const _ReminderTile({required this.reminder});
+  final MealReminder reminder;
+
+  Future<void> _change(
+    BuildContext context,
+    WidgetRef ref,
+    MealReminder next,
+  ) async {
+    final ok = await ref.read(remindersProvider.notifier).change(next);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('알림 권한이 꺼져 있어요. 설정 앱에서 스냅칼 알림을 허용해주세요.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = context.palette;
+    final r = reminder;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.md,
+        AppSpace.xs,
+        AppSpace.xs,
+        AppSpace.xs,
+      ),
+      child: Row(
+        children: [
+          MealBadge(type: r.mealType, size: 28),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(
+            child: Text(MealType.label(r.mealType), style: AppText.body),
+          ),
+          TextButton(
+            onPressed: () async {
+              final t = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay(hour: r.hour, minute: r.minute),
+                helpText: '${MealType.label(r.mealType)} 알림 시간',
+              );
+              if (t != null && context.mounted) {
+                await _change(
+                  context,
+                  ref,
+                  r.copyWith(hour: t.hour, minute: t.minute, enabled: true),
+                );
+              }
+            },
+            child: Text(
+              r.timeLabel,
+              style: AppText.numeric(
+                AppText.label,
+              ).copyWith(color: r.enabled ? p.text1 : p.text3),
+            ),
+          ),
+          Switch(
+            value: r.enabled,
+            onChanged: (on) => _change(context, ref, r.copyWith(enabled: on)),
+          ),
+        ],
+      ),
+    );
+  }
 }
