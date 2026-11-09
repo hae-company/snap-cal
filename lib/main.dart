@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'app.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() async {
+import 'app/app.dart';
+import 'data/providers.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko');
-  runApp(const SnapCalApp());
+  final prefs = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const SnapCalApp(),
+    ),
+  );
 }

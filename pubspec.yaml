@@ -1,5 +1,5 @@
 name: snap_cal
-description: "A new Flutter project."
+description: "SnapCal - AI 음식 사진 칼로리 기록"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -35,15 +35,15 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   image_picker: ^1.2.2
-  sqflite: ^2.4.2+1
-  path_provider: ^2.1.5
   fl_chart: ^1.2.0
   shared_preferences: ^2.5.5
   intl: ^0.20.2
   google_generative_ai: ^0.4.7
   table_calendar: ^3.2.0
-  path: ^1.9.1
-  sqflite_common_ffi_web: ^1.1.2
+  flutter_riverpod: ^3.4.3
+  go_router: ^17.5.0
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +66,20 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+          weight: 400
+        - asset: assets/fonts/Pretendard-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Pretendard-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
+        - asset: assets/fonts/Pretendard-ExtraBold.otf
+          weight: 800
 
   # To add assets to your application, add an assets section, like this:
   # assets:
