@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/tokens.dart';
 import '../../data/billing/billing_models.dart';
+import '../../data/ads/rewarded_ads.dart';
 import '../../data/billing/billing_providers.dart';
 import '../../shared/widgets/brand.dart';
 import '../my/policy_links.dart';
@@ -19,6 +20,9 @@ enum PaywallResult {
 
   /// "AI 없이 직접 기록하기"를 고름
   manualEntry,
+
+  /// 광고를 끝까지 보고 분석 1회를 받음
+  rewarded,
   closed,
 }
 
@@ -67,6 +71,29 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         _toast(message);
       case PurchaseUnavailable():
         _toast('결제는 출시와 함께 열려요. 지금은 모든 기능을 무료로 쓸 수 있어요.');
+    }
+  }
+
+  Future<void> _watchAd() async {
+    setState(() => _busy = true);
+    final outcome = await ref.read(rewardedAdsProvider).show();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    switch (outcome) {
+      case RewardOutcome.rewarded:
+        if (await ref.read(adRewardsProvider.notifier).grant()) {
+          HapticFeedback.mediumImpact();
+          _toast('AI 분석 1회를 받았어요');
+          if (mounted) context.pop(PaywallResult.rewarded);
+        } else {
+          _toast('오늘 광고 보상은 모두 받았어요. 내일 다시 받을 수 있어요.');
+        }
+      case RewardOutcome.cancelled:
+        _toast('광고를 끝까지 봐야 1회를 받을 수 있어요');
+      case RewardOutcome.failed:
+        _toast('지금은 보여줄 광고가 없어요. 잠시 후 다시 시도해주세요.');
+      case RewardOutcome.unavailable:
+        break;
     }
   }
 
@@ -276,6 +303,28 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ),
           ),
         ),
+        if (widget.source == PaywallSource.limit &&
+            ref.watch(canWatchAdProvider))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.xl,
+              AppSpace.xs,
+              AppSpace.xl,
+              0,
+            ),
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : _watchAd,
+              icon: const Icon(Icons.play_circle_rounded, size: 20),
+              label: Text(
+                '광고 보고 1회 더 받기 (오늘 ${ref.watch(adRewardsProvider).today}/$dailyAdRewardLimit)',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppBrand.orange,
+                side: const BorderSide(color: AppBrand.orange),
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+          ),
         if (widget.source == PaywallSource.limit)
           TextButton.icon(
             onPressed: _busy

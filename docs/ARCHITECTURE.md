@@ -58,6 +58,7 @@ flowchart TB
 | 끼니 알림 | 아침·점심·저녁 기록 알림 (서버 없이 폰에서) | ✅ |
 | Gemini 호출 | **현재는 앱이 사용자 API 키로 직접 호출** | 🚧 서버로 이동 |
 | Firebase 익명 ID | 서버가 사용량을 세기 위한 보이지 않는 ID | 🚧 |
+| AdMob 보상형 광고 | 체험 소진 후 광고 1회 = AI 분석 1회, 하루 2회 | ✅ 앱 코드 완료 (광고 없음으로 대기) → [ADS.md](ADS.md) |
 | RevenueCat | 구독 결제, 체험, 복원 | ✅ 앱 코드 완료 (결제 꺼짐으로 대기) → [BILLING.md](BILLING.md) |
 | 백업 파일 | 폰 교체 시 기록 옮기기 (로그인 대신) | 🚧 |
 
@@ -127,6 +128,7 @@ flowchart TB
 | `lib/data/repositories/` | 저장·조회 인터페이스와 구현 |
 | `lib/data/services/` | 끼니 알림 예약, CSV 내보내기 |
 | `lib/data/billing/` | 구독 결제 (결제 꺼짐 / 가짜 / RevenueCat), 이용 범위, 무료 분석 횟수 |
+| `lib/data/ads/` | 보상형 광고 (광고 없음 / 테스트 / AdMob), 하루 2회 |
 | `lib/features/paywall/` | 페이월, 잠금 확인 함수, 잠금 표시, MY 구독 카드 |
 | `lib/features/` | 화면별 폴더 |
 | `lib/shared/` | 여러 화면이 같이 쓰는 위젯 (칼로리 링, 끼니 카드, 입력 대화상자 등) |

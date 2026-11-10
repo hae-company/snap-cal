@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme/tokens.dart';
+import '../../data/ads/rewarded_ads.dart';
 import '../../data/billing/billing_models.dart';
 import '../../data/billing/billing_providers.dart';
 import '../../data/billing/billing_service.dart';
@@ -32,7 +33,12 @@ class PremiumCard extends ConsumerWidget {
         entitlement.inTrial ? '프리미엄 무료 체험 중' : '프리미엄 이용 중',
         _expiryText(entitlement),
       ),
-      AccessLevel.free => ('무료 이용 중', 'AI 분석 체험 $remaining회 남음 · 프리미엄은 무제한'),
+      AccessLevel.free => (
+        '무료 이용 중',
+        ref.watch(rewardedAdsProvider).mode.enabled
+            ? 'AI 분석 $remaining회 남음 · 광고로 하루 $dailyAdRewardLimit회 더 · 프리미엄은 무제한'
+            : 'AI 분석 $remaining회 남음 · 프리미엄은 무제한',
+      ),
     };
 
     Future<void> restore() async {

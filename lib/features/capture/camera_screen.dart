@@ -525,6 +525,8 @@ class _FreeQuotaChip extends ConsumerWidget {
           child: Text(
             remaining > 0
                 ? '무료 분석 $remaining회 남음 · 프리미엄은 무제한'
+                : ref.watch(canWatchAdProvider)
+                ? '무료 분석을 모두 썼어요 · 광고 보고 1회 더 받기'
                 : '무료 분석을 모두 썼어요 · 사진과 함께 직접 기록할 수 있어요',
             style: AppText.micro.copyWith(
               fontSize: 12,

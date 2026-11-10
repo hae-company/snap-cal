@@ -89,6 +89,23 @@ class SettingsRepository {
   int get freeAnalysesUsed => _prefs.getInt(_kFreeAnalyses) ?? 0;
   Future<void> setFreeAnalysesUsed(int n) => _prefs.setInt(_kFreeAnalyses, n);
 
+  // 광고로 받은 AI 분석 횟수 (남은 개수) · 오늘 광고 본 횟수
+  static const _kBonus = 'bonus_analyses';
+  static const _kAdDay = 'ad_reward_day';
+  static const _kAdCount = 'ad_reward_count';
+
+  int get bonusAnalyses => _prefs.getInt(_kBonus) ?? 0;
+  Future<void> setBonusAnalyses(int n) => _prefs.setInt(_kBonus, n);
+
+  /// [day] (yyyy-MM-dd)에 광고 보상을 받은 횟수
+  int adRewardsOn(String day) =>
+      _prefs.getString(_kAdDay) == day ? (_prefs.getInt(_kAdCount) ?? 0) : 0;
+
+  Future<void> setAdRewards(String day, int count) async {
+    await _prefs.setString(_kAdDay, day);
+    await _prefs.setInt(_kAdCount, count);
+  }
+
   // 끼니 알림
   static const _kReminders = 'meal_reminders';
   List<MealReminder> get reminders {

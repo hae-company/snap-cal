@@ -42,7 +42,7 @@ Future<bool> ensurePremium(
 
 /// AI 분석 전에 확인한 결과
 enum AnalysisGate {
-  /// 분석해도 됨 (체험이 남았거나, 잠금이 없거나, 방금 구독함)
+  /// 분석해도 됨 (체험이 남았거나, 잠금이 없거나, 방금 구독했거나, 광고를 봄)
   proceed,
 
   /// AI 없이 사진만 찍고 검색·직접 입력으로 기록하기로 함
@@ -72,6 +72,7 @@ Future<AnalysisGate> openLimitPaywall(BuildContext context) async {
   return switch (result) {
     PaywallResult.subscribed => AnalysisGate.proceed,
     PaywallResult.manualEntry => AnalysisGate.manualEntry,
+    PaywallResult.rewarded => AnalysisGate.proceed,
     PaywallResult.closed => AnalysisGate.stop,
   };
 }

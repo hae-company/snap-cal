@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,17 +8,21 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snap_cal/app/app.dart';
 import 'package:snap_cal/core/date_key.dart';
+import 'package:snap_cal/data/ads/rewarded_ads.dart';
 import 'package:snap_cal/data/billing/billing_models.dart';
 import 'package:snap_cal/data/billing/billing_providers.dart';
 import 'package:snap_cal/data/billing/billing_service.dart';
 import 'package:snap_cal/data/billing/revenuecat_billing_service.dart';
+import 'package:snap_cal/data/models/analysis_result.dart';
 import 'package:snap_cal/data/providers.dart';
+import 'package:snap_cal/data/repositories/food_analysis_repository.dart';
 
 /// 가짜 결제 모드로 앱을 띄운다 ([mock]이 false면 결제 꺼짐 모드)
 Future<ProviderContainer> pumpApp(
   WidgetTester tester,
   Map<String, Object> prefs, {
   bool mock = true,
+  List<dynamic> extra = const [],
 }) async {
   tester.view.physicalSize = const Size(1170, 2532);
   tester.view.devicePixelRatio = 3;
@@ -29,6 +35,7 @@ Future<ProviderContainer> pumpApp(
       sharedPreferencesProvider.overrideWithValue(sp),
       if (mock)
         billingServiceProvider.overrideWithValue(MockBillingService(sp)),
+      ...extra.cast(),
     ],
   );
   addTearDown(c.dispose);
@@ -224,6 +231,117 @@ void main() {
     expect(find.text('칼로리스냅 프리미엄'), findsOneWidget);
     expect(find.text('AI 없이 사진과 함께 직접 기록하기'), findsNothing);
   });
+
+  group('광고 보상', () {
+    test('하루 2회까지만 받고, 체험을 먼저 쓴 뒤 보너스를 쓴다', () async {
+      SharedPreferences.setMockInitialValues({'free_analyses_used': 3});
+      final sp = await SharedPreferences.getInstance();
+      final c = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(sp),
+          billingServiceProvider.overrideWithValue(MockBillingService(sp)),
+          rewardedAdsProvider.overrideWithValue(FakeRewardedAds()),
+        ],
+      );
+      addTearDown(c.dispose);
+      await c.read(entitlementProvider.future);
+
+      expect(c.read(remainingFreeAnalysesProvider), 0);
+      expect(c.read(canWatchAdProvider), isTrue);
+      expect(await c.read(adRewardsProvider.notifier).grant(), isTrue);
+      expect(await c.read(adRewardsProvider.notifier).grant(), isTrue);
+      expect(
+        await c.read(adRewardsProvider.notifier).grant(),
+        isFalse,
+      ); // 하루 한도
+      expect(c.read(remainingFreeAnalysesProvider), 2);
+      expect(c.read(canWatchAdProvider), isFalse);
+
+      await c.read(freeAnalysesUsedProvider.notifier).recordUse();
+      expect(c.read(remainingFreeAnalysesProvider), 1);
+      expect(c.read(freeAnalysesUsedProvider), 3); // 체험 횟수는 그대로, 보너스만 줄었다
+    });
+  });
+
+  testWidgets('체험을 다 쓰면 광고를 보고 1회 받아 바로 분석한다', (tester) async {
+    ImagePickerPlatform.instance = FakePicker('/tmp/snapcal_ad_meal.jpg');
+    final ads = FakeRewardedAds();
+    final c = await pumpApp(
+      tester,
+      {'onboarded': true, 'free_analyses_used': 3},
+      extra: [
+        rewardedAdsProvider.overrideWithValue(ads),
+        foodAnalysisRepositoryProvider.overrideWithValue(FakeAnalysis()),
+      ],
+    );
+    await tester.tap(find.bySemanticsLabel('음식 촬영'));
+    await tester.pumpAndSettle();
+    expect(find.text('무료 분석을 모두 썼어요 · 광고 보고 1회 더 받기'), findsOneWidget);
+
+    await tester.tap(find.text('앨범'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('광고 보고 1회 더 받기 (오늘 0/2)'));
+    // 분석 중 스캔 애니메이션이 계속 돌아서 시간을 직접 흘려보낸다
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    expect(ads.shown, 1);
+    expect(find.text('김치찌개'), findsOneWidget); // 결과 화면
+    expect(c.read(adRewardsProvider).today, 1);
+    expect(c.read(adRewardsProvider).bonus, 0); // 받은 1회를 바로 씀
+  });
+
+  testWidgets('광고를 중간에 닫으면 보상이 없다', (tester) async {
+    final ads = FakeRewardedAds(outcome: RewardOutcome.cancelled);
+    final c = await pumpApp(
+      tester,
+      {'onboarded': true, 'free_analyses_used': 3},
+      extra: [rewardedAdsProvider.overrideWithValue(ads)],
+    );
+    await tester.tap(find.bySemanticsLabel('음식 촬영'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('앨범'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('광고 보고 1회 더 받기 (오늘 0/2)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('광고를 끝까지 봐야 1회를 받을 수 있어요'), findsOneWidget);
+    expect(c.read(adRewardsProvider).bonus, 0);
+    expect(find.text('칼로리스냅 프리미엄'), findsOneWidget); // 페이월 그대로
+  });
+
+  testWidgets('오늘 한도를 다 쓰거나 광고가 꺼져 있으면 광고 버튼이 없다', (tester) async {
+    await pumpApp(
+      tester,
+      {
+        'onboarded': true,
+        'free_analyses_used': 3,
+        'ad_reward_day': dateKey(DateTime.now()),
+        'ad_reward_count': 2,
+      },
+      extra: [rewardedAdsProvider.overrideWithValue(FakeRewardedAds())],
+    );
+    await tester.tap(find.bySemanticsLabel('음식 촬영'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('앨범'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('광고 보고'), findsNothing);
+    expect(find.text('AI 없이 사진과 함께 직접 기록하기'), findsOneWidget);
+  });
+}
+
+class FakeAnalysis implements FoodAnalysisRepository {
+  @override
+  Future<AnalysisResult> analyze(_) async => AnalysisResult(
+    foodName: '김치찌개',
+    calories: 250,
+    carbs: 12,
+    protein: 18,
+    fat: 14,
+    confidence: 'high',
+    description: '',
+  );
 }
 
 /// 고르면 항상 같은 사진을 돌려주는 가짜 사진 선택기
@@ -235,5 +353,5 @@ class FakePicker extends ImagePickerPlatform {
   Future<XFile?> getImageFromSource({
     required ImageSource source,
     ImagePickerOptions options = const ImagePickerOptions(),
-  }) async => XFile(path);
+  }) async => XFile.fromData(Uint8List.fromList(const [1, 2, 3]), path: path);
 }

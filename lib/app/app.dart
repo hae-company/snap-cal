@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/billing/billing_providers.dart';
 import '../data/providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -11,6 +12,7 @@ class CalorieSnapApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(adsWarmupProvider);
     return MaterialApp.router(
       title: '칼로리스냅',
       debugShowCheckedModeBanner: false,
