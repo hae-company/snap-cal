@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../app/router.dart';
-import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
 import '../../data/billing/billing_providers.dart';
@@ -123,14 +122,16 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     final analyzing = _analyzingPath != null;
 
     return Theme(
-      data: AppTheme.dark,
+      data: Theme.of(context),
       child: Builder(
         builder: (context) {
           final p = context.palette;
           return AnnotatedRegion<SystemUiOverlayStyle>(
-            value: SystemUiOverlayStyle.light,
+            value: Theme.of(context).brightness == Brightness.dark
+                ? SystemUiOverlayStyle.light
+                : SystemUiOverlayStyle.dark,
             child: Scaffold(
-              backgroundColor: AppBrand.ink,
+              backgroundColor: p.bg,
               body: SafeArea(
                 child: Column(
                   children: [
@@ -249,16 +250,17 @@ class _Idle extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          colors: [Color(0x2612B76A), Color(0x00000000)],
+      decoration: BoxDecoration(
+        color: p.card,
+        gradient: const RadialGradient(
+          colors: [Color(0x22FF7A2F), Color(0x00FF7A2F)],
           radius: 0.9,
         ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.rice_bowl_rounded, size: 72, color: p.text1.withAlpha(40)),
+          const LogoTile(size: 72),
           const SizedBox(height: AppSpace.md),
           Text(
             '음식이 프레임 안에\n가득 차게 찍어주세요',
@@ -271,7 +273,7 @@ class _Idle extends StatelessWidget {
   }
 }
 
-/// 찍은 사진 위로 초록 스캔 줄이 오르내린다.
+/// 찍은 사진 위로 주황 스캔 줄이 오르내린다.
 class _Scanning extends StatefulWidget {
   const _Scanning({required this.path});
   final String path;
@@ -301,7 +303,7 @@ class _ScanningState extends State<_Scanning>
         Image.file(
           File(widget.path),
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const ColoredBox(color: AppBrand.inkTop),
+          errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFFEDEEF0)),
         ),
         const ColoredBox(color: Color(0x33000000)),
         AnimatedBuilder(
@@ -318,9 +320,9 @@ class _ScanningState extends State<_Scanning>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0x006CF5B4),
-                    Color(0x556CF5B4),
-                    Color(0xFF6CF5B4),
+                    Color(0x00FF9A52),
+                    Color(0x66FF9A52),
+                    Color(0xFFFF7A2F),
                   ],
                   stops: [0, 0.94, 1],
                 ),
@@ -379,7 +381,7 @@ class _AnalyzingMessageState extends State<_AnalyzingMessage> {
               dimension: 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: AppBrand.neon,
+                color: AppBrand.orange,
               ),
             ),
             const SizedBox(width: AppSpace.xs),
@@ -402,13 +404,13 @@ class _TipChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: p.surfaceAlt,
+        color: p.card,
         borderRadius: BorderRadius.circular(99),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppBrand.neon),
+          Icon(icon, size: 14, color: AppBrand.orange),
           const SizedBox(width: 4),
           Text(
             label,
@@ -479,19 +481,19 @@ class _ShutterButton extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 4),
+            border: Border.all(color: const Color(0x55FF7A2F), width: 4),
           ),
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: AppBrand.neonGradient,
+              gradient: AppBrand.gradient,
               boxShadow: [
-                BoxShadow(color: AppBrand.green.withAlpha(110), blurRadius: 24),
+                BoxShadow(color: AppBrand.orange.withAlpha(90), blurRadius: 20),
               ],
             ),
             child: const Icon(
               Icons.camera_alt_rounded,
-              color: AppBrand.ink,
+              color: Colors.white,
               size: 28,
             ),
           ),
@@ -517,14 +519,17 @@ class _FreeQuotaChip extends ConsumerWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0x1AFFD84D),
+            color: context.palette.brandSubtle,
             borderRadius: BorderRadius.circular(99),
           ),
           child: Text(
             remaining > 0
                 ? '무료 분석 $remaining회 남음 · 프리미엄은 무제한'
                 : '무료 분석을 모두 썼어요 · 사진과 함께 직접 기록할 수 있어요',
-            style: AppText.micro.copyWith(fontSize: 12, color: AppBrand.spark),
+            style: AppText.micro.copyWith(
+              fontSize: 12,
+              color: context.palette.brand,
+            ),
           ),
         ),
       ),

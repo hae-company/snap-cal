@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../../data/billing/billing_models.dart';
 import '../../data/billing/billing_providers.dart';
@@ -90,11 +89,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final plans = ref.watch(_plansProvider);
 
     return Theme(
-      data: AppTheme.dark,
+      data: Theme.of(context),
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
+        value: Theme.of(context).brightness == Brightness.dark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         child: Scaffold(
-          backgroundColor: AppBrand.ink,
+          backgroundColor: context.palette.bg,
           body: Stack(
             children: [
               Positioned(
@@ -105,7 +106,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   height: 420,
                   decoration: const BoxDecoration(
                     gradient: RadialGradient(
-                      colors: [Color(0x4412B76A), Color(0x0012B76A)],
+                      colors: [Color(0x33FF9A52), Color(0x00FF9A52)],
                     ),
                   ),
                 ),
@@ -113,7 +114,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               SafeArea(
                 child: plans.when(
                   loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppBrand.neon),
+                    child: CircularProgressIndicator(color: AppBrand.orange),
                   ),
                   error: (_, _) =>
                       _Error(onRetry: () => ref.invalidate(_plansProvider)),
@@ -140,7 +141,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final discount = yearly != null && monthly != null
         ? _discountPercent(yearly, monthly)
         : null;
-    const dim = Color(0xFF9CA3AF);
+    final dim = context.palette.text2;
 
     return Column(
       children: [
@@ -149,7 +150,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           child: IconButton(
             onPressed: _busy ? null : () => context.pop(PaywallResult.closed),
             tooltip: '닫기',
-            icon: const Icon(Icons.close_rounded, color: dim),
+            icon: Icon(Icons.close_rounded, color: dim),
           ),
         ),
         Expanded(
@@ -167,7 +168,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 '칼로리스냅 프리미엄',
                 textAlign: TextAlign.center,
                 style: AppText.title1.copyWith(
-                  color: Colors.white,
+                  color: context.palette.text1,
                   fontSize: 28,
                 ),
               ),
@@ -202,15 +203,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: const Color(0x1A6CF5B4),
+                          color: context.palette.brandSubtle,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(b.$1, size: 18, color: AppBrand.neon),
+                        child: Icon(b.$1, size: 18, color: AppBrand.orange),
                       ),
                       const SizedBox(width: AppSpace.sm),
                       Text(
                         b.$2,
-                        style: AppText.body.copyWith(color: Colors.white),
+                        style: AppText.body.copyWith(
+                          color: context.palette.text1,
+                        ),
                       ),
                     ],
                   ),
@@ -243,10 +246,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             width: double.infinity,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: mode == BillingMode.off
-                    ? null
-                    : AppBrand.neonGradient,
-                color: mode == BillingMode.off ? const Color(0xFF2A2D31) : null,
+                gradient: mode == BillingMode.off ? null : AppBrand.gradient,
+                color: mode == BillingMode.off
+                    ? context.palette.surfaceAlt
+                    : null,
                 borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               child: FilledButton(
@@ -255,7 +258,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
                   disabledBackgroundColor: Colors.transparent,
-                  foregroundColor: mode == BillingMode.off ? dim : AppBrand.ink,
+                  foregroundColor: mode == BillingMode.off ? dim : Colors.white,
                 ),
                 child: _busy
                     ? const SizedBox.square(
@@ -280,7 +283,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 : () => context.pop(PaywallResult.manualEntry),
             icon: const Icon(Icons.search_rounded, size: 18),
             label: const Text('AI 없이 사진과 함께 직접 기록하기'),
-            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            style: TextButton.styleFrom(foregroundColor: context.palette.text1),
           ),
         Text(
           selected.trialDays > 0
@@ -300,12 +303,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               onPressed: _busy ? null : _restore,
               child: const Text('구매 복원'),
             ),
-            const Text('·', style: TextStyle(color: dim)),
+            Text('·', style: TextStyle(color: dim)),
             TextButton(
               onPressed: () => openTerms(context),
               child: const Text('이용약관'),
             ),
-            const Text('·', style: TextStyle(color: dim)),
+            Text('·', style: TextStyle(color: dim)),
             TextButton(
               onPressed: () => openPrivacy(context),
               child: const Text('개인정보처리방침'),
@@ -340,7 +343,7 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const dim = Color(0xFF9CA3AF);
+    final dim = context.palette.text2;
     final sub = [
       ?plan.perMonthLabel,
       if (plan.trialDays > 0) '${plan.trialDays}일 무료 체험',
@@ -354,10 +357,12 @@ class _PlanCard extends StatelessWidget {
           duration: AppMotion.fast,
           padding: const EdgeInsets.all(AppSpace.md),
           decoration: BoxDecoration(
-            color: selected ? const Color(0x1A6CF5B4) : const Color(0xFF17191C),
+            color: selected
+                ? context.palette.brandSubtle
+                : context.palette.card,
             borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(
-              color: selected ? AppBrand.neon : const Color(0xFF2A2D31),
+              color: selected ? AppBrand.orange : Colors.transparent,
               width: selected ? 2 : 1,
             ),
           ),
@@ -367,7 +372,7 @@ class _PlanCard extends StatelessWidget {
                 selected
                     ? Icons.radio_button_checked_rounded
                     : Icons.radio_button_off_rounded,
-                color: selected ? AppBrand.neon : dim,
+                color: selected ? AppBrand.orange : dim,
               ),
               const SizedBox(width: AppSpace.sm),
               Expanded(
@@ -378,7 +383,9 @@ class _PlanCard extends StatelessWidget {
                       children: [
                         Text(
                           plan.periodLabel,
-                          style: AppText.headline.copyWith(color: Colors.white),
+                          style: AppText.headline.copyWith(
+                            color: context.palette.text1,
+                          ),
                         ),
                         if (badge != null) ...[
                           const SizedBox(width: AppSpace.xs),
@@ -388,13 +395,13 @@ class _PlanCard extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppBrand.spark,
+                              color: AppBrand.orange,
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
                               badge!,
                               style: AppText.micro.copyWith(
-                                color: AppBrand.ink,
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -410,7 +417,7 @@ class _PlanCard extends StatelessWidget {
                 plan.priceLabel,
                 style: AppText.numeric(
                   AppText.headline,
-                ).copyWith(color: Colors.white),
+                ).copyWith(color: context.palette.text1),
               ),
             ],
           ),
@@ -427,7 +434,7 @@ class _TrialTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const dim = Color(0xFF9CA3AF);
+    final dim = context.palette.text2;
     Widget step(
       IconData icon,
       String title,
@@ -438,9 +445,9 @@ class _TrialTimeline extends StatelessWidget {
       children: [
         Column(
           children: [
-            Icon(icon, size: 18, color: AppBrand.neon),
+            Icon(icon, size: 18, color: AppBrand.orange),
             if (!last)
-              Container(width: 2, height: 22, color: const Color(0xFF2A2D31)),
+              Container(width: 2, height: 22, color: context.palette.border),
           ],
         ),
         const SizedBox(width: AppSpace.sm),
@@ -452,7 +459,7 @@ class _TrialTimeline extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '$title  ',
-                    style: AppText.label.copyWith(color: Colors.white),
+                    style: AppText.label.copyWith(color: context.palette.text1),
                   ),
                   TextSpan(
                     text: body,
@@ -486,14 +493,14 @@ class _Notice extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(AppSpace.sm),
     decoration: BoxDecoration(
-      color: const Color(0x1AFFD84D),
+      color: const Color(0xFFFFF7E0),
       borderRadius: BorderRadius.circular(AppRadius.control),
-      border: Border.all(color: const Color(0x55FFD84D)),
+      border: Border.all(color: const Color(0xFFFFE29A)),
     ),
     child: Text(
       text,
       textAlign: TextAlign.center,
-      style: AppText.caption.copyWith(color: AppBrand.spark),
+      style: AppText.caption.copyWith(color: const Color(0xFF9A6B00)),
     ),
   );
 }
@@ -509,7 +516,7 @@ class _Error extends StatelessWidget {
       children: [
         Text(
           '상품 정보를 불러오지 못했어요',
-          style: AppText.body.copyWith(color: Colors.white),
+          style: AppText.body.copyWith(color: context.palette.text1),
         ),
         TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         TextButton(

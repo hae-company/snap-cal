@@ -67,13 +67,12 @@ abstract final class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: p.surface,
+        color: p.card,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          side: BorderSide(color: p.border),
         ),
       ),
       dividerTheme: DividerThemeData(color: p.border, thickness: 1, space: 1),

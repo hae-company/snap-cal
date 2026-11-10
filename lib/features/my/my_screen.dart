@@ -221,14 +221,14 @@ class MyScreen extends ConsumerWidget {
   }
 }
 
-/// 하루 목표 카드. 로고와 같은 어두운 브랜드 배경.
+/// 하루 목표 카드. 로고와 같은 주황 그라데이션.
 class _GoalCard extends ConsumerWidget {
   const _GoalCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final g = ref.watch(goalsProvider);
-    const dim = Color(0xFF9CA3AF);
+    const dim = Color(0xD9FFFFFF);
 
     Widget macro(String label, int grams, Color c) => Expanded(
       child: Column(
@@ -262,8 +262,8 @@ class _GoalCard extends ConsumerWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        gradient: AppBrand.inkGradient,
-        borderRadius: BorderRadius.circular(AppRadius.sheet),
+        gradient: AppBrand.gradient,
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Stack(
         children: [
@@ -276,7 +276,7 @@ class _GoalCard extends ConsumerWidget {
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [Color(0x4012B76A), Color(0x0012B76A)],
+                  colors: [Color(0x33FFFFFF), Color(0x00FFFFFF)],
                 ),
               ),
             ),
@@ -293,9 +293,9 @@ class _GoalCard extends ConsumerWidget {
                     TextButton.icon(
                       onPressed: () => showGoalEditor(context),
                       style: TextButton.styleFrom(
-                        foregroundColor: AppBrand.neon,
+                        foregroundColor: Colors.white,
                         visualDensity: VisualDensity.compact,
-                        backgroundColor: const Color(0x1A6CF5B4),
+                        backgroundColor: const Color(0x33FFFFFF),
                       ),
                       icon: const Icon(Icons.tune_rounded, size: 16),
                       label: const Text('수정'),
@@ -305,13 +305,9 @@ class _GoalCard extends ConsumerWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    ShaderMask(
-                      shaderCallback: (r) =>
-                          AppBrand.neonGradient.createShader(r),
-                      child: Text(
-                        formatKcal(g.kcal),
-                        style: AppText.display.copyWith(color: Colors.white),
-                      ),
+                    Text(
+                      formatKcal(g.kcal),
+                      style: AppText.display.copyWith(color: Colors.white),
                     ),
                     const SizedBox(width: 6),
                     Padding(
@@ -326,9 +322,9 @@ class _GoalCard extends ConsumerWidget {
                 const SizedBox(height: AppSpace.lg),
                 Row(
                   children: [
-                    macro('탄수화물', g.carbsG, AppPalette.dark.carbs),
-                    macro('단백질', g.proteinG, AppPalette.dark.protein),
-                    macro('지방', g.fatG, AppPalette.dark.fat),
+                    macro('탄수화물', g.carbsG, Colors.white),
+                    macro('단백질', g.proteinG, Colors.white),
+                    macro('지방', g.fatG, Colors.white),
                   ],
                 ),
                 const SizedBox(height: AppSpace.md),

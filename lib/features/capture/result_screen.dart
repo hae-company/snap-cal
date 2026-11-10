@@ -345,7 +345,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
   Widget _confidence() {
     final (label, color) = switch (_result.confidence) {
-      'high' => ('정확도 높음', AppBrand.neon),
+      'high' => ('정확도 높음', const Color(0xFF8BE3B0)),
       'medium' => ('정확도 보통', AppBrand.spark),
       _ => ('확인이 필요해요', const Color(0xFFFCA5A5)),
     };

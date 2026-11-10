@@ -93,7 +93,7 @@ class _CornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..shader = AppBrand.neonGradient.createShader(Offset.zero & size)
+      ..shader = AppBrand.gradient.createShader(Offset.zero & size)
       ..style = PaintingStyle.stroke
       ..strokeWidth = w
       ..strokeCap = StrokeCap.round;

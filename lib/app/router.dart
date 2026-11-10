@@ -240,10 +240,10 @@ class CaptureButton extends StatelessWidget {
           height: 56,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: AppBrand.neonGradient,
+            gradient: AppBrand.gradient,
             boxShadow: [
               BoxShadow(
-                color: AppBrand.green.withAlpha(100),
+                color: AppBrand.orange.withAlpha(90),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -251,7 +251,7 @@ class CaptureButton extends StatelessWidget {
           ),
           child: const Icon(
             Icons.camera_alt_rounded,
-            color: AppBrand.ink,
+            color: Colors.white,
             size: 26,
           ),
         ),

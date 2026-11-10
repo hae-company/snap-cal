@@ -66,7 +66,7 @@ void main() {
 
   testWidgets('첫 실행: 온보딩을 마치면 목표가 저장되고 오늘 화면으로 간다', (tester) async {
     final c = await pumpApp(tester, {});
-    expect(find.text('찍으면 끝.\n한식도 정확하게.'), findsOneWidget);
+    expect(find.text('찍으면 끝, 한식도 정확하게'), findsOneWidget);
 
     await tester.tap(find.text('시작하기'));
     await tester.pumpAndSettle();

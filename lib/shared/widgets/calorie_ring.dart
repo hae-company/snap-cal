@@ -39,7 +39,7 @@ class CalorieRing extends StatelessWidget {
             painter: _RingPainter(
               progress: value,
               track: p.surfaceAlt,
-              colors: over ? [p.over, p.over] : [AppBrand.neon, p.brand],
+              colors: over ? [p.over, p.over] : [AppBrand.orangeLight, p.brand],
               stroke: size * 0.085,
             ),
             child: Center(

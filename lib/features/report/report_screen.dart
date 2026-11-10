@@ -110,7 +110,9 @@ class ReportScreen extends ConsumerWidget {
                                   end: Alignment.topCenter,
                                   colors: [
                                     p.brand,
-                                    i == todayIndex ? AppBrand.neon : p.brand,
+                                    i == todayIndex
+                                        ? AppBrand.orangeLight
+                                        : p.brand,
                                   ],
                                 ),
                           backDrawRodData: BackgroundBarChartRodData(

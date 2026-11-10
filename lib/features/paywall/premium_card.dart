@@ -71,12 +71,12 @@ class PremiumCard extends ConsumerWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    gradient: AppBrand.neonGradient,
+                    gradient: AppBrand.gradient,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.workspace_premium_rounded,
-                    color: AppBrand.ink,
+                    color: Colors.white,
                     size: 20,
                   ),
                 ),

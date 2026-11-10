@@ -281,7 +281,7 @@ class _AddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Material(
-      color: p.surfaceAlt,
+      color: p.bg,
       borderRadius: BorderRadius.circular(AppRadius.control),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.control),
@@ -315,10 +315,10 @@ class FoodThumbnail extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: p.surfaceAlt,
+        color: p.brandSubtle,
         borderRadius: BorderRadius.circular(AppRadius.control),
       ),
-      child: Icon(Icons.rice_bowl_rounded, size: size * 0.46, color: p.text3),
+      child: Icon(Icons.rice_bowl_rounded, size: size * 0.46, color: p.brand),
     );
     final file = PhotoStore.resolve(path);
     if (file == null) return placeholder;

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../../core/nutrition_calc.dart';
 import '../../data/billing/billing_providers.dart';
@@ -398,31 +397,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: AppSpace.xxl),
           decoration: BoxDecoration(
-            gradient: AppBrand.inkGradient,
-            borderRadius: BorderRadius.circular(AppRadius.sheet),
+            gradient: AppBrand.gradient,
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           child: Column(
             children: [
               Text(
                 '하루 권장 칼로리',
-                style: AppText.label.copyWith(color: const Color(0xFF9CA3AF)),
+                style: AppText.label.copyWith(color: const Color(0xD9FFFFFF)),
               ),
               const SizedBox(height: AppSpace.xs),
-              ShaderMask(
-                shaderCallback: (r) => AppBrand.neonGradient.createShader(r),
-                child: Text(
-                  formatKcal(g.kcal),
-                  style: AppText.display.copyWith(
-                    fontSize: 56,
-                    color: Colors.white,
-                    letterSpacing: -1.5,
-                  ),
+              Text(
+                formatKcal(g.kcal),
+                style: AppText.display.copyWith(
+                  fontSize: 56,
+                  color: Colors.white,
+                  letterSpacing: -1.5,
                 ),
               ),
               Text(
                 'kcal',
                 style: AppText.headline.copyWith(
-                  color: const Color(0xFF9CA3AF),
+                  color: const Color(0xD9FFFFFF),
                 ),
               ),
             ],
@@ -448,145 +444,120 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-/// 첫 화면. 로고와 같은 어두운 브랜드 화면.
+/// 첫 화면. 흰 배경에 웃는 로고, 산뜻한 주황.
 class _Welcome extends StatelessWidget {
   const _Welcome({required this.onStart});
   final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     Widget feature(IconData icon, String title, String body) => Padding(
-      padding: const EdgeInsets.only(bottom: AppSpace.md),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0x1A6CF5B4),
-              borderRadius: BorderRadius.circular(AppRadius.control),
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpace.md),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: p.brandSubtle,
+                borderRadius: BorderRadius.circular(AppRadius.control),
+              ),
+              child: Icon(icon, color: p.brand, size: 22),
             ),
-            child: Icon(icon, color: AppBrand.neon, size: 22),
-          ),
-          const SizedBox(width: AppSpace.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppText.headline.copyWith(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  body,
-                  style: AppText.caption.copyWith(
-                    color: const Color(0xFF9CA3AF),
-                  ),
-                ),
-              ],
+            const SizedBox(width: AppSpace.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppText.headline.copyWith(fontSize: 16)),
+                  Text(body, style: AppText.caption.copyWith(color: p.text2)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
-    return Theme(
-      data: AppTheme.dark,
-      child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
-        child: Scaffold(
-          backgroundColor: AppBrand.ink,
-          body: Stack(
-            children: [
-              Positioned(
-                top: -120,
-                left: -80,
-                right: -80,
-                child: Container(
-                  height: 420,
-                  decoration: const BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [Color(0x4012B76A), Color(0x0012B76A)],
+    return Scaffold(
+      backgroundColor: p.bg,
+      body: Stack(
+        children: [
+          Positioned(
+            top: -160,
+            left: -60,
+            right: -60,
+            child: Container(
+              height: 420,
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [Color(0x33FF9A52), Color(0x00FF9A52)],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.xl,
+                AppSpace.xxxl,
+                AppSpace.xl,
+                AppSpace.md,
+              ),
+              child: Column(
+                children: [
+                  const LogoTile(size: 104),
+                  const SizedBox(height: AppSpace.lg),
+                  Text(
+                    '칼로리스냅',
+                    style: AppText.title1.copyWith(
+                      fontSize: 30,
+                      color: p.brand,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                ),
-              ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.xl,
-                    AppSpace.xxxl,
-                    AppSpace.xl,
-                    AppSpace.md,
+                  const SizedBox(height: AppSpace.xs),
+                  Text(
+                    '찍으면 끝, 한식도 정확하게',
+                    textAlign: TextAlign.center,
+                    style: AppText.title2.copyWith(color: p.text1),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const LogoTile(size: 88),
-                      const SizedBox(height: AppSpace.xl),
-                      Text(
-                        '찍으면 끝.\n한식도 정확하게.',
-                        style: AppText.title1.copyWith(
-                          fontSize: 34,
-                          height: 1.25,
-                          color: Colors.white,
-                          letterSpacing: -0.8,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpace.sm),
-                      Text(
-                        '사진 한 장으로 칼로리와 탄단지를 기록하세요',
-                        style: AppText.body.copyWith(
-                          color: const Color(0xFF9CA3AF),
-                        ),
-                      ),
-                      const Spacer(),
-                      feature(
-                        Icons.photo_camera_rounded,
-                        '사진 한 장이면 끝',
-                        '검색 없이 찍기만 하면 AI가 분석해요',
-                      ),
-                      feature(
-                        Icons.ramen_dining_rounded,
-                        '한식에 강해요',
-                        '찌개, 반찬, 한 상 차림도 1인분 기준으로',
-                      ),
-                      feature(
-                        Icons.donut_large_rounded,
-                        '남은 칼로리 한눈에',
-                        '목표까지 얼마나 남았는지 바로 보여요',
-                      ),
-                      const SizedBox(height: AppSpace.lg),
-                      SizedBox(
-                        width: double.infinity,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: AppBrand.neonGradient,
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.control,
-                            ),
-                          ),
-                          child: FilledButton(
-                            onPressed: onStart,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: AppBrand.ink,
-                            ),
-                            child: const Text('시작하기'),
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: AppSpace.xxs),
+                  Text(
+                    '사진 한 장으로 칼로리와 탄단지를 기록해요',
+                    textAlign: TextAlign.center,
+                    style: AppText.body.copyWith(color: p.text2),
                   ),
-                ),
+                  const Spacer(),
+                  feature(
+                    Icons.photo_camera_rounded,
+                    '사진 한 장이면 끝',
+                    '검색 없이 찍기만 하면 AI가 분석해요',
+                  ),
+                  feature(
+                    Icons.ramen_dining_rounded,
+                    '한식에 강해요',
+                    '찌개, 반찬, 한 상 차림도 1인분 기준으로',
+                  ),
+                  feature(
+                    Icons.donut_large_rounded,
+                    '남은 칼로리 한눈에',
+                    '목표까지 얼마나 남았는지 바로 보여요',
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                  FilledButton(onPressed: onStart, child: const Text('시작하기')),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
