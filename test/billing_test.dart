@@ -111,7 +111,7 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('음식 촬영'));
     await tester.pumpAndSettle();
-    expect(find.text('무료 분석을 모두 썼어요 · 프리미엄 보기'), findsOneWidget);
+    expect(find.text('무료 분석을 모두 썼어요 · 검색으로 직접 기록할 수 있어요'), findsOneWidget);
 
     await tester.tap(find.text('앨범'));
     await tester.pumpAndSettle();
@@ -180,5 +180,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.read(onboardedProvider), isTrue);
     expect(find.text('오늘의 식사'), findsOneWidget);
+  });
+
+  testWidgets('무료 분석을 다 쓰면 페이월에서 "직접 기록"으로 검색 화면에 간다', (tester) async {
+    final c = await pumpApp(tester, {
+      'onboarded': true,
+      'free_analyses_used': 3,
+    });
+    await tester.tap(find.bySemanticsLabel('음식 촬영'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('앨범'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('AI 없이 검색해서 직접 기록하기'));
+    await tester.pumpAndSettle();
+    expect(find.text('음식 추가'), findsOneWidget);
+    expect(c.read(accessLevelProvider), AccessLevel.free);
+  });
+
+  testWidgets('잠긴 기능의 페이월에는 "직접 기록" 버튼이 없다', (tester) async {
+    await pumpApp(tester, {'onboarded': true});
+    await tester.tap(find.text('MY'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('프리미엄 시작하기'));
+    await tester.pumpAndSettle();
+    expect(find.text('스냅칼 프리미엄'), findsOneWidget);
+    expect(find.text('AI 없이 검색해서 직접 기록하기'), findsNothing);
   });
 }

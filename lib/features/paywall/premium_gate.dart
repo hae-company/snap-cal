@@ -10,19 +10,19 @@ import '../../data/billing/billing_models.dart';
 import '../../data/billing/billing_providers.dart';
 import 'paywall_screen.dart';
 
-/// 페이월을 연다. 구독하면 true.
-Future<bool> openPaywall(
+/// 페이월을 연다.
+Future<PaywallResult> openPaywall(
   BuildContext context, {
   PaywallSource source = PaywallSource.my,
   PremiumFeature? feature,
 }) async {
-  final ok = await context.push<bool>(
+  final result = await context.push<PaywallResult>(
     Uri(
       path: Routes.paywall,
       queryParameters: {'source': source.name, 'feature': ?feature?.name},
     ).toString(),
   );
-  return ok == true;
+  return result ?? PaywallResult.closed;
 }
 
 /// 프리미엄 기능을 쓰기 전에 부른다. 쓸 수 있으면 true (잠금이 없거나, 구독 중이거나, 방금 구독함).
@@ -32,18 +32,48 @@ Future<bool> ensurePremium(
   PremiumFeature feature,
 ) async {
   if (ref.read(accessLevelProvider).unlocked) return true;
-  return openPaywall(context, source: PaywallSource.feature, feature: feature);
+  final result = await openPaywall(
+    context,
+    source: PaywallSource.feature,
+    feature: feature,
+  );
+  return result == PaywallResult.subscribed;
 }
 
-/// AI 분석 전에 부른다. 무료 체험이 남았거나 잠금이 없으면 true.
-Future<bool> ensureAnalysisQuota(BuildContext context, WidgetRef ref) async {
+/// AI 분석 전에 확인한 결과
+enum AnalysisGate {
+  /// 분석해도 됨 (체험이 남았거나, 잠금이 없거나, 방금 구독함)
+  proceed,
+
+  /// AI 대신 검색해서 직접 기록하기로 함
+  manualEntry,
+
+  /// 그만둠
+  stop,
+}
+
+/// AI 분석 전에 부른다. 무료 체험을 다 썼으면 페이월을 띄운다.
+Future<AnalysisGate> ensureAnalysisQuota(
+  BuildContext context,
+  WidgetRef ref,
+) async {
   final remaining = ref.read(remainingFreeAnalysesProvider);
-  if (remaining == null || remaining > 0) return true;
-  return openPaywall(
+  if (remaining == null || remaining > 0) return AnalysisGate.proceed;
+  return openLimitPaywall(context);
+}
+
+/// 무료 분석을 다 쓴 사용자용 페이월 (직접 기록 버튼 포함)
+Future<AnalysisGate> openLimitPaywall(BuildContext context) async {
+  final result = await openPaywall(
     context,
     source: PaywallSource.limit,
     feature: PremiumFeature.unlimitedAnalysis,
   );
+  return switch (result) {
+    PaywallResult.subscribed => AnalysisGate.proceed,
+    PaywallResult.manualEntry => AnalysisGate.manualEntry,
+    PaywallResult.closed => AnalysisGate.stop,
+  };
 }
 
 /// 잠긴 기능은 흐리게 보여주고 그 위에 "프리미엄으로 보기" 버튼을 띄운다.

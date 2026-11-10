@@ -13,7 +13,6 @@ import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
 import '../../data/billing/billing_providers.dart';
 import '../../data/repositories/food_analysis_repository.dart';
-import '../paywall/paywall_screen.dart';
 import '../paywall/premium_gate.dart';
 import '../../shared/widgets/brand.dart';
 import 'result_screen.dart';
@@ -58,10 +57,26 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     }
   }
 
+  /// 사진 대신 검색해서 기록 (끼니·날짜는 그대로)
+  void _goSearch() => context.pushReplacement(
+    Uri(
+      path: Routes.add,
+      queryParameters: {'meal': ?widget.presetMeal, 'date': ?widget.date},
+    ).toString(),
+  );
+
+  Future<void> _openLimitPaywall() async {
+    final gate = await openLimitPaywall(context);
+    if (mounted && gate == AnalysisGate.manualEntry) _goSearch();
+  }
+
   Future<void> _pick(ImageSource source) async {
     HapticFeedback.mediumImpact();
-    // 무료 체험을 다 썼으면 페이월. 구독하지 않으면 멈춘다.
-    if (!await ensureAnalysisQuota(context, ref) || !mounted) return;
+    // 무료 체험을 다 썼으면 페이월. 구독하면 계속, "직접 기록"을 고르면 검색 화면으로.
+    final gate = await ensureAnalysisQuota(context, ref);
+    if (!mounted) return;
+    if (gate == AnalysisGate.manualEntry) return _goSearch();
+    if (gate == AnalysisGate.stop) return;
     final picked = await _pickImage(source);
     if (picked == null || !mounted) return;
 
@@ -134,7 +149,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                         ],
                       ),
                     ),
-                    if (!analyzing) const _FreeQuotaChip(),
+                    if (!analyzing) _FreeQuotaChip(onTap: _openLimitPaywall),
                     Expanded(
                       child: Center(
                         child: Padding(
@@ -203,15 +218,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                             _RoundAction(
                               icon: Icons.search_rounded,
                               label: '검색',
-                              onTap: () => context.pushReplacement(
-                                Uri(
-                                  path: Routes.add,
-                                  queryParameters: {
-                                    'meal': ?widget.presetMeal,
-                                    'date': ?widget.date,
-                                  },
-                                ).toString(),
-                              ),
+                              onTap: _goSearch,
                             ),
                           ],
                         ),
@@ -490,7 +497,8 @@ class _ShutterButton extends StatelessWidget {
 
 /// 무료 사용자에게 남은 AI 분석 횟수
 class _FreeQuotaChip extends ConsumerWidget {
-  const _FreeQuotaChip();
+  const _FreeQuotaChip({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -499,7 +507,7 @@ class _FreeQuotaChip extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: AppSpace.xxs),
       child: GestureDetector(
-        onTap: () => openPaywall(context, source: PaywallSource.limit),
+        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -509,7 +517,7 @@ class _FreeQuotaChip extends ConsumerWidget {
           child: Text(
             remaining > 0
                 ? '무료 분석 $remaining회 남음 · 프리미엄은 무제한'
-                : '무료 분석을 모두 썼어요 · 프리미엄 보기',
+                : '무료 분석을 모두 썼어요 · 검색으로 직접 기록할 수 있어요',
             style: AppText.micro.copyWith(fontSize: 12, color: AppBrand.spark),
           ),
         ),

@@ -13,11 +13,21 @@ import '../my/policy_links.dart';
 /// 어디서 페이월을 열었는지 (분석 지표용)
 enum PaywallSource { onboarding, limit, feature, my }
 
+/// 페이월을 닫은 이유
+enum PaywallResult {
+  /// 구독(또는 복원)함
+  subscribed,
+
+  /// "AI 없이 검색해서 기록하기"를 고름
+  manualEntry,
+  closed,
+}
+
 final _plansProvider = FutureProvider<List<Plan>>(
   (ref) => ref.watch(billingServiceProvider).plans(),
 );
 
-/// 프리미엄 구독 화면. 구독에 성공하면 true로 닫힌다.
+/// 프리미엄 구독 화면. 닫힐 때 [PaywallResult]를 돌려준다.
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
     super.key,
@@ -51,7 +61,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               ? '${plan.trialDays}일 무료 체험을 시작했어요'
               : '프리미엄을 시작했어요',
         );
-        context.pop(true);
+        context.pop(PaywallResult.subscribed);
       case PurchaseCancelled():
         break;
       case PurchaseFailed(:final message):
@@ -68,7 +78,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     setState(() => _busy = false);
     if (e.premium) {
       _toast('구독을 복원했어요');
-      context.pop(true);
+      context.pop(PaywallResult.subscribed);
     } else {
       _toast('복원할 구독이 없어요');
     }
@@ -137,7 +147,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         Align(
           alignment: Alignment.centerRight,
           child: IconButton(
-            onPressed: _busy ? null : () => context.pop(false),
+            onPressed: _busy ? null : () => context.pop(PaywallResult.closed),
             tooltip: '닫기',
             icon: const Icon(Icons.close_rounded, color: dim),
           ),
@@ -263,6 +273,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ),
           ),
         ),
+        if (widget.source == PaywallSource.limit)
+          TextButton.icon(
+            onPressed: _busy
+                ? null
+                : () => context.pop(PaywallResult.manualEntry),
+            icon: const Icon(Icons.search_rounded, size: 18),
+            label: const Text('AI 없이 검색해서 직접 기록하기'),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+          ),
         Text(
           selected.trialDays > 0
               ? '체험이 끝나면 ${selected.priceLabel}/${selected.period == PlanPeriod.yearly ? '년' : '월'} 자동 결제돼요. 체험 중 언제든 해지하면 요금이 청구되지 않아요.'
@@ -494,7 +513,7 @@ class _Error extends StatelessWidget {
         ),
         TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         TextButton(
-          onPressed: () => context.pop(false),
+          onPressed: () => context.pop(PaywallResult.closed),
           child: const Text('닫기'),
         ),
       ],
