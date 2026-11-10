@@ -1,4 +1,4 @@
-# 스냅칼 할 일 목록
+# 칼로리스냅 할 일 목록
 
 > 2026-11-10 기준 · 구조는 [ARCHITECTURE.md](ARCHITECTURE.md), 기획은 [PRODUCT_DESIGN.md](PRODUCT_DESIGN.md)
 >
@@ -35,8 +35,8 @@
 > 앱 쪽 코드는 완료. 결제 꺼짐 상태로 들어가 있고, 빌드 옵션만 바꾸면 켜집니다 → [BILLING.md](BILLING.md)
 
 - [ ] 🙋 App Store Connect / Google Play Console에 구독 상품 등록
-  - `snapcal_premium_yearly` ₩39,000 (7일 무료 체험)
-  - `snapcal_premium_monthly` ₩5,900
+  - `caloriesnap_premium_yearly` ₩39,000 (7일 무료 체험)
+  - `caloriesnap_premium_monthly` ₩5,900
 - [ ] 🙋 RevenueCat 가입, 스토어 연결
 - [x] 🤖 RevenueCat SDK 연동 (익명 ID 기준), 결제 꺼짐 / 가짜 결제 / 실제 결제 모드
 - [x] 🤖 페이월 화면 (온보딩 마지막, 체험 소진 시, 잠긴 기능 누를 때)
@@ -102,7 +102,7 @@
 
 - [x] 제품 설계서 (BM, 기능, 디자인 시스템)
 - [x] 기반 정리: 폴더 구조, Riverpod, go_router, 디자인 토큰, Pretendard
-- [x] 로고, 앱 아이콘, 시작 화면, 앱 이름 "스냅칼"
+- [x] 로고, 앱 아이콘, 시작 화면, 앱 이름 "칼로리스냅"
 - [x] 전체 화면 리디자인: 오늘 / 기록 / 촬영 / 리포트 / MY, 다크 모드
 - [x] 음식 검색(초성), 기록 수정, 인분 조절, 지난 날짜 기록
 - [x] 물 섭취, 체중 기록·그래프, 끼니 알림, CSV 내보내기, 오늘의 한마디

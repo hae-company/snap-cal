@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/brand/tile.png" width="96" alt="스냅칼 로고">
+  <img src="assets/brand/tile.png" width="96" alt="칼로리스냅 로고">
 </p>
 
-<h1 align="center">스냅칼 (SnapCal)</h1>
+<h1 align="center">칼로리스냅</h1>
 <p align="center">찍으면 끝. 한식도 정확하게.</p>
 
 음식 사진 한 장으로 칼로리와 탄단지를 기록하는 식단 앱입니다. Flutter로 iOS와 Android를 함께 만듭니다.

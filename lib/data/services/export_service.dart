@@ -44,13 +44,13 @@ Future<void> shareMealsCsv(List<FoodRecord> records, {Rect? origin}) async {
   final dir = await getTemporaryDirectory();
   final now = DateTime.now();
   final name =
-      'snapcal_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.csv';
+      'caloriesnap_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.csv';
   final file = File('${dir.path}/$name');
   await file.writeAsString(buildMealsCsv(records));
   await SharePlus.instance.share(
     ShareParams(
       files: [XFile(file.path, mimeType: 'text/csv')],
-      subject: '스냅칼 식단 기록',
+      subject: '칼로리스냅 식단 기록',
       sharePositionOrigin: origin,
     ),
   );

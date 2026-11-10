@@ -122,7 +122,7 @@ class MyScreen extends ConsumerWidget {
               title: '오픈소스 라이선스',
               onTap: () => showLicensePage(
                 context: context,
-                applicationName: '스냅칼',
+                applicationName: '칼로리스냅',
                 applicationVersion: appVersion,
               ),
             ),
@@ -642,7 +642,9 @@ class _ReminderTile extends ConsumerWidget {
     final ok = await ref.read(remindersProvider.notifier).change(next);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('알림 권한이 꺼져 있어요. 설정 앱에서 스냅칼 알림을 허용해주세요.')),
+        const SnackBar(
+          content: Text('알림 권한이 꺼져 있어요. 설정 앱에서 칼로리스냅 알림을 허용해주세요.'),
+        ),
       );
     }
   }

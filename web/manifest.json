@@ -1,6 +1,6 @@
 {
-    "name": "스냅칼 - 찍으면 끝나는 칼로리 기록",
-    "short_name": "스냅칼",
+    "name": "칼로리스냅 - 찍으면 끝나는 칼로리 기록",
+    "short_name": "칼로리스냅",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0E0F11",

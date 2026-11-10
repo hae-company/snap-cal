@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="스냅칼"
+        android:label="칼로리스냅"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

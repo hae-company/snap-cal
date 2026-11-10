@@ -33,7 +33,7 @@ Future<ProviderContainer> pumpApp(
   );
   addTearDown(c.dispose);
   await tester.pumpWidget(
-    UncontrolledProviderScope(container: c, child: const SnapCalApp()),
+    UncontrolledProviderScope(container: c, child: const CalorieSnapApp()),
   );
   await tester.pumpAndSettle();
   return c;
@@ -116,7 +116,7 @@ void main() {
 
     await tester.tap(find.text('앨범'));
     await tester.pumpAndSettle();
-    expect(find.text('스냅칼 프리미엄'), findsOneWidget);
+    expect(find.text('칼로리스냅 프리미엄'), findsOneWidget);
     expect(find.textContaining('AI 사진 분석 무제한은(는) 프리미엄'), findsOneWidget);
 
     // 7일 무료 체험 시작 → 프리미엄, 남은 횟수 표시가 사라진다
@@ -173,9 +173,9 @@ void main() {
       await tester.tap(find.text('다음'));
       await tester.pumpAndSettle();
     }
-    await tester.tap(find.text('스냅칼 시작하기'));
+    await tester.tap(find.text('칼로리스냅 시작하기'));
     await tester.pumpAndSettle();
-    expect(find.text('스냅칼 프리미엄'), findsOneWidget);
+    expect(find.text('칼로리스냅 프리미엄'), findsOneWidget);
 
     await tester.tap(find.byTooltip('닫기'));
     await tester.pumpAndSettle();
@@ -221,7 +221,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('프리미엄 시작하기'));
     await tester.pumpAndSettle();
-    expect(find.text('스냅칼 프리미엄'), findsOneWidget);
+    expect(find.text('칼로리스냅 프리미엄'), findsOneWidget);
     expect(find.text('AI 없이 사진과 함께 직접 기록하기'), findsNothing);
   });
 }

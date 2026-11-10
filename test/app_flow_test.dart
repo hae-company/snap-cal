@@ -31,7 +31,10 @@ Future<ProviderContainer> pumpApp(
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
-    UncontrolledProviderScope(container: container, child: const SnapCalApp()),
+    UncontrolledProviderScope(
+      container: container,
+      child: const CalorieSnapApp(),
+    ),
   );
   await tester.pumpAndSettle();
   return container;
@@ -82,7 +85,7 @@ void main() {
     }
     expect(find.text('2,245'), findsOneWidget);
 
-    await tester.tap(find.text('스냅칼 시작하기'));
+    await tester.tap(find.text('칼로리스냅 시작하기'));
     await tester.pumpAndSettle();
 
     expect(find.text('오늘의 식사'), findsOneWidget);

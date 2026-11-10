@@ -29,8 +29,8 @@ flutter run --dart-define=BILLING=revenuecat \
 
 | 상품 ID | 가격 | 체험 | 구독 그룹 |
 |---|---|---|---|
-| `snapcal_premium_yearly` | ₩39,000 / 년 | 7일 무료 (Introductory Offer) | 스냅칼 프리미엄 |
-| `snapcal_premium_monthly` | ₩5,900 / 월 | 없음 | 스냅칼 프리미엄 |
+| `caloriesnap_premium_yearly` | ₩39,000 / 년 | 7일 무료 (Introductory Offer) | 칼로리스냅 프리미엄 |
+| `caloriesnap_premium_monthly` | ₩5,900 / 월 | 없음 | 칼로리스냅 프리미엄 |
 
 - App Store Connect: 앱 → 구독 → 구독 그룹 만들기 → 두 상품 추가
 - Google Play Console: 수익 창출 → 구독 → 두 상품 + 기본 요금제 (연간에 7일 무료 체험 혜택)
@@ -40,8 +40,8 @@ flutter run --dart-define=BILLING=revenuecat \
 2. **Entitlement**: `premium` (정확히 이 이름)
 3. **Products**: 위 두 상품을 불러와서 `premium`에 연결
 4. **Offering**: `default`를 현재(current)로 두고 패키지 2개
-   - `$rc_annual` → `snapcal_premium_yearly`
-   - `$rc_monthly` → `snapcal_premium_monthly`
+   - `$rc_annual` → `caloriesnap_premium_yearly`
+   - `$rc_monthly` → `caloriesnap_premium_monthly`
 5. **API Keys**에서 iOS(`appl_`), Android(`goog_`) 공개 키 복사 → 위 빌드 옵션에 넣기
 
 ### 3. 샌드박스 테스트 🙋🤖

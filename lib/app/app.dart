@@ -6,13 +6,13 @@ import '../data/providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 
-class SnapCalApp extends ConsumerWidget {
-  const SnapCalApp({super.key});
+class CalorieSnapApp extends ConsumerWidget {
+  const CalorieSnapApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'SnapCal',
+      title: '칼로리스냅',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

@@ -152,7 +152,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               child: FilledButton(
                 onPressed: !_canProceed || _saving ? null : _next,
-                child: Text(_step < _lastStep ? '다음' : '스냅칼 시작하기'),
+                child: Text(_step < _lastStep ? '다음' : '칼로리스냅 시작하기'),
               ),
             ),
           ],

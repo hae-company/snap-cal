@@ -164,7 +164,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               const Center(child: LogoTile(size: 64)),
               const SizedBox(height: AppSpace.md),
               Text(
-                '스냅칼 프리미엄',
+                '칼로리스냅 프리미엄',
                 textAlign: TextAlign.center,
                 style: AppText.title1.copyWith(
                   color: Colors.white,

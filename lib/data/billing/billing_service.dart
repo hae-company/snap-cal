@@ -24,14 +24,14 @@ abstract interface class BillingService {
 /// 설계서 2.2의 가격. 결제가 꺼져 있거나 가짜 결제일 때 페이월에 보여준다.
 const designPlans = [
   Plan(
-    id: 'snapcal_premium_yearly',
+    id: 'caloriesnap_premium_yearly',
     period: PlanPeriod.yearly,
     priceLabel: '₩39,000',
     perMonthLabel: '월 3,250원',
     trialDays: 7,
   ),
   Plan(
-    id: 'snapcal_premium_monthly',
+    id: 'caloriesnap_premium_monthly',
     period: PlanPeriod.monthly,
     priceLabel: '₩5,900',
   ),

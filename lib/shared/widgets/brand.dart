@@ -14,12 +14,12 @@ class LogoTile extends StatelessWidget {
       width: size,
       height: size,
       filterQuality: FilterQuality.medium,
-      semanticLabel: '스냅칼 로고',
+      semanticLabel: '칼로리스냅 로고',
     );
   }
 }
 
-/// 로고 + "스냅칼" 글자
+/// 로고 + "칼로리스냅" 글자
 class Wordmark extends StatelessWidget {
   const Wordmark({super.key, this.size = 32, this.color, this.subtitle});
   final double size;
@@ -39,7 +39,7 @@ class Wordmark extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '스냅칼',
+              '칼로리스냅',
               style: TextStyle(
                 fontSize: size * 0.62,
                 fontWeight: FontWeight.w800,

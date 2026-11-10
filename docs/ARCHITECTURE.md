@@ -1,4 +1,4 @@
-# 스냅칼 구조도
+# 칼로리스냅 구조도
 
 > 2026-11-10 기준 · 코드: `lib/` · 기획: [PRODUCT_DESIGN.md](PRODUCT_DESIGN.md)
 >
@@ -12,7 +12,7 @@
 
 ```mermaid
 flowchart TB
-  subgraph Phone["📱 스냅칼 앱 (Flutter · iOS / Android)"]
+  subgraph Phone["📱 칼로리스냅 앱 (Flutter · iOS / Android)"]
     direction LR
     UI["화면<br>오늘 · 기록 · 촬영 · 리포트 · MY"]
     Local[("기기 저장소 ✅<br>식단 · 물 · 체중 · 설정")]

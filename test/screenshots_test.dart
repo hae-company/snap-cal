@@ -140,7 +140,7 @@ void main() {
           key: key,
           child: UncontrolledProviderScope(
             container: c,
-            child: const SnapCalApp(),
+            child: const CalorieSnapApp(),
           ),
         ),
       );
