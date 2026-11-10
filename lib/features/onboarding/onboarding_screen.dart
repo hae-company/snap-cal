@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../../core/nutrition_calc.dart';
+import '../../data/billing/billing_providers.dart';
 import '../../data/providers.dart';
+import '../paywall/paywall_screen.dart';
+import '../paywall/premium_gate.dart';
 import '../../shared/widgets/brand.dart';
 import '../../shared/widgets/calorie_ring.dart';
 
@@ -50,6 +53,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _finish() async {
     setState(() => _saving = true);
     await ref.read(goalsProvider.notifier).save(NutritionGoals.fromKcal(_tdee));
+    if (ref.read(billingServiceProvider).mode.enforcesPremium && mounted) {
+      await openPaywall(context, source: PaywallSource.onboarding);
+    }
     await ref.read(onboardedProvider.notifier).complete();
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/meal_type.dart';
+import '../data/billing/billing_models.dart';
 import '../data/providers.dart';
 import '../features/capture/camera_screen.dart';
 import '../features/capture/result_screen.dart';
@@ -11,6 +12,7 @@ import '../features/food_entry/add_food_screen.dart';
 import '../features/log/calendar_screen.dart';
 import '../features/my/my_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
+import '../features/paywall/paywall_screen.dart';
 import '../features/report/report_screen.dart';
 import '../features/today/today_screen.dart';
 import 'theme/tokens.dart';
@@ -28,6 +30,9 @@ abstract final class Routes {
 
   /// 검색·직접 입력으로 기록. `?meal=lunch&date=2026-11-09`
   static const add = '/add';
+
+  /// 프리미엄 구독. `?source=limit&feature=csvExport`
+  static const paywall = '/paywall';
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -40,7 +45,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: onboarded,
     redirect: (context, state) {
       final atOnboarding = state.matchedLocation == Routes.onboarding;
-      if (!onboarded.value) return atOnboarding ? null : Routes.onboarding;
+      // 온보딩 마지막에 페이월을 띄우므로 페이월은 온보딩 전에도 허용한다
+      final allowedBeforeOnboarding =
+          atOnboarding || state.matchedLocation == Routes.paywall;
+      if (!onboarded.value) {
+        return allowedBeforeOnboarding ? null : Routes.onboarding;
+      }
       if (atOnboarding) return Routes.today;
       return null;
     },
@@ -78,6 +88,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               date: date != null && DateTime.tryParse(date) != null
                   ? date
                   : null,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: Routes.paywall,
+        pageBuilder: (_, state) {
+          final q = state.uri.queryParameters;
+          return MaterialPage(
+            fullscreenDialog: true,
+            child: PaywallScreen(
+              source:
+                  PaywallSource.values.asNameMap()[q['source']] ??
+                  PaywallSource.my,
+              feature: PremiumFeature.values.asNameMap()[q['feature']],
             ),
           );
         },

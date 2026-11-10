@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/tokens.dart';
 import '../../core/date_key.dart';
+import '../../data/billing/billing_models.dart';
 import '../../data/providers.dart';
+import '../paywall/premium_gate.dart';
 import '../../shared/widgets/input_dialog.dart';
 
 /// 체중 추이 + 오늘 체중 기록
@@ -48,9 +50,12 @@ class WeightSection extends ConsumerWidget {
               _Summary(first: all.first.$2, last: all.last.$2, target: target),
               const SizedBox(height: AppSpace.md),
               if (entries.length >= 2)
-                SizedBox(
-                  height: 140,
-                  child: _Chart(entries: entries, target: target),
+                PremiumLock(
+                  feature: PremiumFeature.weightTrend,
+                  child: SizedBox(
+                    height: 140,
+                    child: _Chart(entries: entries, target: target),
+                  ),
                 ),
             ],
           ],
@@ -86,25 +91,29 @@ class _Summary extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 4, left: 4),
           child: Text('kg', style: AppText.caption.copyWith(color: p.text2)),
         ),
-        const Spacer(),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (diff != 0)
-              Text(
-                '처음보다 ${diff > 0 ? '+' : ''}${kg(diff)}kg',
-                style: AppText.label.copyWith(
-                  color: diff < 0 ? p.brand : p.text2,
+        const SizedBox(width: AppSpace.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (diff != 0)
+                Text(
+                  '처음보다 ${diff > 0 ? '+' : ''}${kg(diff)}kg',
+                  textAlign: TextAlign.end,
+                  style: AppText.label.copyWith(
+                    color: diff < 0 ? p.brand : p.text2,
+                  ),
                 ),
-              ),
-            if (toGo != null)
-              Text(
-                toGo.abs() < 0.05
-                    ? '목표 달성! 🎉'
-                    : '목표 ${kg(target!)}kg까지 ${kg(toGo.abs())}kg',
-                style: AppText.caption.copyWith(color: p.text2),
-              ),
-          ],
+              if (toGo != null)
+                Text(
+                  toGo.abs() < 0.05
+                      ? '목표 달성! 🎉'
+                      : '목표 ${kg(target!)}kg까지 ${kg(toGo.abs())}kg',
+                  textAlign: TextAlign.end,
+                  style: AppText.caption.copyWith(color: p.text2),
+                ),
+            ],
+          ),
         ),
       ],
     );

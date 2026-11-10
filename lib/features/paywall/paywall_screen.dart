@@ -1,0 +1,510 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../app/theme/app_theme.dart';
+import '../../app/theme/tokens.dart';
+import '../../data/billing/billing_models.dart';
+import '../../data/billing/billing_providers.dart';
+import '../../shared/widgets/brand.dart';
+import '../my/policy_links.dart';
+
+/// 어디서 페이월을 열었는지 (분석 지표용)
+enum PaywallSource { onboarding, limit, feature, my }
+
+final _plansProvider = FutureProvider<List<Plan>>(
+  (ref) => ref.watch(billingServiceProvider).plans(),
+);
+
+/// 프리미엄 구독 화면. 구독에 성공하면 true로 닫힌다.
+class PaywallScreen extends ConsumerStatefulWidget {
+  const PaywallScreen({
+    super.key,
+    this.source = PaywallSource.my,
+    this.feature,
+  });
+  final PaywallSource source;
+  final PremiumFeature? feature;
+
+  @override
+  ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
+}
+
+class _PaywallScreenState extends ConsumerState<PaywallScreen> {
+  Plan? _selected;
+  bool _busy = false;
+
+  void _toast(String m) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+
+  Future<void> _buy(Plan plan) async {
+    setState(() => _busy = true);
+    final outcome = await ref.read(entitlementProvider.notifier).purchase(plan);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    switch (outcome) {
+      case PurchaseSuccess():
+        HapticFeedback.mediumImpact();
+        _toast(
+          plan.trialDays > 0
+              ? '${plan.trialDays}일 무료 체험을 시작했어요'
+              : '프리미엄을 시작했어요',
+        );
+        context.pop(true);
+      case PurchaseCancelled():
+        break;
+      case PurchaseFailed(:final message):
+        _toast(message);
+      case PurchaseUnavailable():
+        _toast('결제는 출시와 함께 열려요. 지금은 모든 기능을 무료로 쓸 수 있어요.');
+    }
+  }
+
+  Future<void> _restore() async {
+    setState(() => _busy = true);
+    final e = await ref.read(entitlementProvider.notifier).restore();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (e.premium) {
+      _toast('구독을 복원했어요');
+      context.pop(true);
+    } else {
+      _toast('복원할 구독이 없어요');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mode = ref.watch(billingServiceProvider).mode;
+    final plans = ref.watch(_plansProvider);
+
+    return Theme(
+      data: AppTheme.dark,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: AppBrand.ink,
+          body: Stack(
+            children: [
+              Positioned(
+                top: -140,
+                left: -80,
+                right: -80,
+                child: Container(
+                  height: 420,
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [Color(0x4412B76A), Color(0x0012B76A)],
+                    ),
+                  ),
+                ),
+              ),
+              SafeArea(
+                child: plans.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: AppBrand.neon),
+                  ),
+                  error: (_, _) =>
+                      _Error(onRetry: () => ref.invalidate(_plansProvider)),
+                  data: (list) => list.isEmpty
+                      ? _Error(onRetry: () => ref.invalidate(_plansProvider))
+                      : _content(list, mode),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _content(List<Plan> plans, BillingMode mode) {
+    final selected = _selected ?? plans.first;
+    final yearly = plans
+        .where((p) => p.period == PlanPeriod.yearly)
+        .firstOrNull;
+    final monthly = plans
+        .where((p) => p.period == PlanPeriod.monthly)
+        .firstOrNull;
+    final discount = yearly != null && monthly != null
+        ? _discountPercent(yearly, monthly)
+        : null;
+    const dim = Color(0xFF9CA3AF);
+
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            onPressed: _busy ? null : () => context.pop(false),
+            tooltip: '닫기',
+            icon: const Icon(Icons.close_rounded, color: dim),
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.xl,
+              0,
+              AppSpace.xl,
+              AppSpace.md,
+            ),
+            children: [
+              const Center(child: LogoTile(size: 64)),
+              const SizedBox(height: AppSpace.md),
+              Text(
+                '스냅칼 프리미엄',
+                textAlign: TextAlign.center,
+                style: AppText.title1.copyWith(
+                  color: Colors.white,
+                  fontSize: 28,
+                ),
+              ),
+              const SizedBox(height: AppSpace.xxs),
+              Text(
+                widget.feature != null
+                    ? '${widget.feature!.label}은(는) 프리미엄 기능이에요'
+                    : '목표까지 더 빠르고 정확하게',
+                textAlign: TextAlign.center,
+                style: AppText.body.copyWith(color: dim),
+              ),
+              if (mode == BillingMode.off) ...[
+                const SizedBox(height: AppSpace.md),
+                const _Notice(text: '결제는 출시와 함께 열려요.\n지금은 모든 기능을 무료로 쓸 수 있어요.'),
+              ],
+              if (mode == BillingMode.mock) ...[
+                const SizedBox(height: AppSpace.md),
+                const _Notice(text: '테스트 결제 모드예요. 실제로 돈이 나가지 않아요.'),
+              ],
+              const SizedBox(height: AppSpace.xl),
+              for (final b in const [
+                (Icons.photo_camera_rounded, 'AI 사진 분석 무제한'),
+                (Icons.ramen_dining_rounded, '한 상 차림도 음식별로 인식'),
+                (Icons.monitor_weight_rounded, '체중 추이와 목표 도달 예측'),
+                (Icons.ios_share_rounded, '식단 기록 내보내기'),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpace.sm),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: const Color(0x1A6CF5B4),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(b.$1, size: 18, color: AppBrand.neon),
+                      ),
+                      const SizedBox(width: AppSpace.sm),
+                      Text(
+                        b.$2,
+                        style: AppText.body.copyWith(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: AppSpace.md),
+              for (final p in plans) ...[
+                _PlanCard(
+                  plan: p,
+                  selected: p == selected,
+                  badge: p.period == PlanPeriod.yearly && discount != null
+                      ? '$discount% 할인'
+                      : null,
+                  onTap: () => setState(() => _selected = p),
+                ),
+                const SizedBox(height: AppSpace.sm),
+              ],
+              if (selected.trialDays > 0)
+                _TrialTimeline(days: selected.trialDays),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.xl,
+            AppSpace.xs,
+            AppSpace.xl,
+            AppSpace.xs,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: mode == BillingMode.off
+                    ? null
+                    : AppBrand.neonGradient,
+                color: mode == BillingMode.off ? const Color(0xFF2A2D31) : null,
+                borderRadius: BorderRadius.circular(AppRadius.control),
+              ),
+              child: FilledButton(
+                onPressed: _busy ? null : () => _buy(selected),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  disabledBackgroundColor: Colors.transparent,
+                  foregroundColor: mode == BillingMode.off ? dim : AppBrand.ink,
+                ),
+                child: _busy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        mode == BillingMode.off
+                            ? '출시 준비 중'
+                            : selected.trialDays > 0
+                            ? '${selected.trialDays}일 무료로 시작하기'
+                            : '${selected.periodLabel} 구독 시작하기',
+                      ),
+              ),
+            ),
+          ),
+        ),
+        Text(
+          selected.trialDays > 0
+              ? '체험이 끝나면 ${selected.priceLabel}/${selected.period == PlanPeriod.yearly ? '년' : '월'} 자동 결제돼요. 체험 중 언제든 해지하면 요금이 청구되지 않아요.'
+              : '${selected.priceLabel}/${selected.period == PlanPeriod.yearly ? '년' : '월'} · 기간이 끝나기 24시간 전까지 해지하지 않으면 자동 갱신돼요.',
+          textAlign: TextAlign.center,
+          style: AppText.micro.copyWith(
+            fontWeight: FontWeight.w400,
+            color: dim,
+            height: 1.5,
+          ),
+        ).paddedH(AppSpace.xl),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton(
+              onPressed: _busy ? null : _restore,
+              child: const Text('구매 복원'),
+            ),
+            const Text('·', style: TextStyle(color: dim)),
+            TextButton(
+              onPressed: () => openTerms(context),
+              child: const Text('이용약관'),
+            ),
+            const Text('·', style: TextStyle(color: dim)),
+            TextButton(
+              onPressed: () => openPrivacy(context),
+              child: const Text('개인정보처리방침'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// 연간이 월간 12개월 대비 몇 % 싼지. 가격 문자열에서 숫자만 뽑아 계산한다.
+int? _discountPercent(Plan yearly, Plan monthly) {
+  double? n(String s) => double.tryParse(s.replaceAll(RegExp(r'[^0-9.]'), ''));
+  final y = n(yearly.priceLabel), m = n(monthly.priceLabel);
+  if (y == null || m == null || m == 0) return null;
+  final pct = ((1 - y / (m * 12)) * 100).round();
+  return pct > 0 ? pct : null;
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.plan,
+    required this.selected,
+    required this.onTap,
+    this.badge,
+  });
+  final Plan plan;
+  final bool selected;
+  final VoidCallback onTap;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    const dim = Color(0xFF9CA3AF);
+    final sub = [
+      ?plan.perMonthLabel,
+      if (plan.trialDays > 0) '${plan.trialDays}일 무료 체험',
+    ].join(' · ');
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          padding: const EdgeInsets.all(AppSpace.md),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0x1A6CF5B4) : const Color(0xFF17191C),
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(
+              color: selected ? AppBrand.neon : const Color(0xFF2A2D31),
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                color: selected ? AppBrand.neon : dim,
+              ),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          plan.periodLabel,
+                          style: AppText.headline.copyWith(color: Colors.white),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: AppSpace.xs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppBrand.spark,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              badge!,
+                              style: AppText.micro.copyWith(
+                                color: AppBrand.ink,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (sub.isNotEmpty)
+                      Text(sub, style: AppText.caption.copyWith(color: dim)),
+                  ],
+                ),
+              ),
+              Text(
+                plan.priceLabel,
+                style: AppText.numeric(
+                  AppText.headline,
+                ).copyWith(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 체험 타임라인: 오늘 시작 → 종료 2일 전 알림 → 결제
+class _TrialTimeline extends StatelessWidget {
+  const _TrialTimeline({required this.days});
+  final int days;
+
+  @override
+  Widget build(BuildContext context) {
+    const dim = Color(0xFF9CA3AF);
+    Widget step(
+      IconData icon,
+      String title,
+      String body, {
+      bool last = false,
+    }) => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Icon(icon, size: 18, color: AppBrand.neon),
+            if (!last)
+              Container(width: 2, height: 22, color: const Color(0xFF2A2D31)),
+          ],
+        ),
+        const SizedBox(width: AppSpace.sm),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: AppSpace.xs),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$title  ',
+                    style: AppText.label.copyWith(color: Colors.white),
+                  ),
+                  TextSpan(
+                    text: body,
+                    style: AppText.caption.copyWith(color: dim),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.xs),
+      child: Column(
+        children: [
+          step(Icons.lock_open_rounded, '오늘', '모든 프리미엄 기능 열림'),
+          step(Icons.notifications_active_rounded, '${days - 2}일째', '체험 종료 알림'),
+          step(Icons.event_available_rounded, '$days일째', '첫 결제', last: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppSpace.sm),
+    decoration: BoxDecoration(
+      color: const Color(0x1AFFD84D),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: const Color(0x55FFD84D)),
+    ),
+    child: Text(
+      text,
+      textAlign: TextAlign.center,
+      style: AppText.caption.copyWith(color: AppBrand.spark),
+    ),
+  );
+}
+
+class _Error extends StatelessWidget {
+  const _Error({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '상품 정보를 불러오지 못했어요',
+          style: AppText.body.copyWith(color: Colors.white),
+        ),
+        TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+        TextButton(
+          onPressed: () => context.pop(false),
+          child: const Text('닫기'),
+        ),
+      ],
+    ),
+  );
+}
+
+extension on Widget {
+  Widget paddedH(double h) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: h),
+    child: this,
+  );
+}

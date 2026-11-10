@@ -11,7 +11,10 @@ import '../../app/router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
+import '../../data/billing/billing_providers.dart';
 import '../../data/repositories/food_analysis_repository.dart';
+import '../paywall/paywall_screen.dart';
+import '../paywall/premium_gate.dart';
 import '../../shared/widgets/brand.dart';
 import 'result_screen.dart';
 
@@ -57,6 +60,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
   Future<void> _pick(ImageSource source) async {
     HapticFeedback.mediumImpact();
+    // 무료 체험을 다 썼으면 페이월. 구독하지 않으면 멈춘다.
+    if (!await ensureAnalysisQuota(context, ref) || !mounted) return;
     final picked = await _pickImage(source);
     if (picked == null || !mounted) return;
 
@@ -71,6 +76,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         _toast(result.error!);
       } else {
         HapticFeedback.lightImpact();
+        await ref.read(freeAnalysesUsedProvider.notifier).recordUse();
+        if (!mounted) return;
         context.pushReplacement(
           Routes.result,
           extra: ResultArgs(
@@ -127,6 +134,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                         ],
                       ),
                     ),
+                    if (!analyzing) const _FreeQuotaChip(),
                     Expanded(
                       child: Center(
                         child: Padding(
@@ -412,24 +420,31 @@ class _RoundAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Material(
-          color: p.surfaceAlt,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox.square(
-              dimension: 56,
+    // 아이콘과 글자 어디를 눌러도 동작하게 한다
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: p.surfaceAlt,
+                shape: BoxShape.circle,
+              ),
               child: Icon(icon, color: p.text1),
             ),
-          ),
+            const SizedBox(height: 6),
+            Text(label, style: AppText.micro.copyWith(color: p.text2)),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(label, style: AppText.micro.copyWith(color: p.text2)),
-      ],
+      ),
     );
   }
 }
@@ -466,6 +481,36 @@ class _ShutterButton extends StatelessWidget {
               color: AppBrand.ink,
               size: 28,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 무료 사용자에게 남은 AI 분석 횟수
+class _FreeQuotaChip extends ConsumerWidget {
+  const _FreeQuotaChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final remaining = ref.watch(remainingFreeAnalysesProvider);
+    if (remaining == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.xxs),
+      child: GestureDetector(
+        onTap: () => openPaywall(context, source: PaywallSource.limit),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0x1AFFD84D),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            remaining > 0
+                ? '무료 분석 $remaining회 남음 · 프리미엄은 무제한'
+                : '무료 분석을 모두 썼어요 · 프리미엄 보기',
+            style: AppText.micro.copyWith(fontSize: 12, color: AppBrand.spark),
           ),
         ),
       ),

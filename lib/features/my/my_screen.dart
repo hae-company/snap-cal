@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/tokens.dart';
 import '../../core/meal_type.dart';
 import '../../core/nutrition_calc.dart';
+import '../../data/billing/billing_models.dart';
 import '../../data/providers.dart';
+import '../paywall/premium_card.dart';
+import '../paywall/premium_gate.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/services/export_service.dart';
 import '../../data/repositories/food_analysis_repository.dart';
@@ -14,7 +17,7 @@ import '../../shared/widgets/calorie_ring.dart';
 import '../../shared/widgets/input_dialog.dart';
 import '../../shared/widgets/number_field.dart';
 import '../../shared/widgets/sheet_handle.dart';
-import 'policy_texts.dart';
+import 'policy_links.dart';
 
 const appVersion = '1.0.0';
 
@@ -41,6 +44,8 @@ class MyScreen extends ConsumerWidget {
           const Text('MY', style: AppText.title1),
           const SizedBox(height: AppSpace.md),
           const _GoalCard(),
+          const SizedBox(height: AppSpace.sm),
+          const PremiumCard(),
           const SizedBox(height: AppSpace.xl),
 
           const _GroupTitle('끼니 알림'),
@@ -105,12 +110,12 @@ class MyScreen extends ConsumerWidget {
             _Tile(
               leading: _IconBox(Icons.privacy_tip_outlined, p.text2),
               title: '개인정보처리방침',
-              onTap: () => _showPolicy(context, '개인정보처리방침', privacyPolicyText),
+              onTap: () => openPrivacy(context),
             ),
             _Tile(
               leading: _IconBox(Icons.description_outlined, p.text2),
               title: '이용약관',
-              onTap: () => _showPolicy(context, '이용약관', termsOfServiceText),
+              onTap: () => openTerms(context),
             ),
             _Tile(
               leading: _IconBox(Icons.code_rounded, p.text2),
@@ -156,6 +161,7 @@ class MyScreen extends ConsumerWidget {
   }
 
   Future<void> _export(BuildContext context, WidgetRef ref) async {
+    if (!await ensurePremium(context, ref, PremiumFeature.csvExport)) return;
     final records = await ref.read(mealRepositoryProvider).all();
     if (!context.mounted) return;
     if (records.isEmpty) {
@@ -212,67 +218,6 @@ class MyScreen extends ConsumerWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text('모든 기록이 삭제되었어요')));
     }
-  }
-
-  void _showPolicy(BuildContext context, String title, String content) {
-    final p = context.palette;
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true, // 하단 탭 위로 띄운다
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        builder: (_, scroll) => Container(
-          decoration: BoxDecoration(
-            color: p.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.sheet),
-            ),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: AppSpace.xs),
-              const SheetHandle(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpace.screen,
-                  0,
-                  AppSpace.xs,
-                  AppSpace.xs,
-                ),
-                child: Row(
-                  children: [
-                    Text(title, style: AppText.title2.copyWith(fontSize: 18)),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      tooltip: '닫기',
-                      onPressed: () => Navigator.pop(sheetCtx),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scroll,
-                  padding: const EdgeInsets.all(AppSpace.screen),
-                  child: Text(
-                    content,
-                    style: AppText.label.copyWith(
-                      fontWeight: FontWeight.w400,
-                      height: 1.7,
-                      color: p.text2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

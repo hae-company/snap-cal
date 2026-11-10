@@ -58,7 +58,7 @@ flowchart TB
 | 끼니 알림 | 아침·점심·저녁 기록 알림 (서버 없이 폰에서) | ✅ |
 | Gemini 호출 | **현재는 앱이 사용자 API 키로 직접 호출** | 🚧 서버로 이동 |
 | Firebase 익명 ID | 서버가 사용량을 세기 위한 보이지 않는 ID | 🚧 |
-| RevenueCat | 구독 결제, 체험, 복원 | 🚧 |
+| RevenueCat | 구독 결제, 체험, 복원 | ✅ 앱 코드 완료 (결제 꺼짐으로 대기) → [BILLING.md](BILLING.md) |
 | 백업 파일 | 폰 교체 시 기록 옮기기 (로그인 대신) | 🚧 |
 
 ---
@@ -126,6 +126,8 @@ flowchart TB
 | `lib/data/models/` | `FoodRecord`(기록), `FoodItem`(음식 목록), `AnalysisResult`(AI 결과) |
 | `lib/data/repositories/` | 저장·조회 인터페이스와 구현 |
 | `lib/data/services/` | 끼니 알림 예약, CSV 내보내기 |
+| `lib/data/billing/` | 구독 결제 (결제 꺼짐 / 가짜 / RevenueCat), 이용 범위, 무료 분석 횟수 |
+| `lib/features/paywall/` | 페이월, 잠금 확인 함수, 잠금 표시, MY 구독 카드 |
 | `lib/features/` | 화면별 폴더 |
 | `lib/shared/` | 여러 화면이 같이 쓰는 위젯 (칼로리 링, 끼니 카드, 입력 대화상자 등) |
 | `assets/brand/` | 로고·아이콘 원본 (`mark_source.js`가 좌표 원본) |
@@ -139,7 +141,7 @@ flowchart TB
 flowchart LR
   Start(["앱 실행"]) --> Q{"온보딩<br>완료?"}
   Q -- 아니요 --> Onb["환영 → 성별 → 신체 → 활동량 → 맞춤 목표"]
-  Onb --> Pay["💳 페이월 🚧"]
+  Onb --> Pay["💳 페이월<br>결제 켜졌을 때만"]
   Pay --> Shell
   Q -- 예 --> Shell
 
@@ -266,7 +268,7 @@ flowchart LR
   A["✅ 기반 정리<br>구조 · 상태관리 · 디자인 토큰"] --> B["✅ 디자인 · 로고"]
   B --> C["✅ 기능 추가<br>검색 · 수정 · 물 · 체중 · 알림 · CSV"]
   C --> D["🚧 AI 서버<br>키 숨기기 · 사용량 제한 · 음식별 인식"]
-  D --> E["🚧 구독<br>RevenueCat · 페이월 · 체험 3회"]
+  D --> E["✅ 구독 코드 · 페이월 · 체험 3회<br>🚧 상품 등록 · 키 연결"]
   E --> F["🚧 백업 파일<br>저장 · 불러오기"]
   F --> G["🚧 출시 준비<br>약관 · 스토어 등록 · 정확도 측정"]
   G --> H(["🚀 출시"])

@@ -84,6 +84,11 @@ class SettingsRepository {
       ? _prefs.remove(_kTargetWeight)
       : _prefs.setDouble(_kTargetWeight, kg);
 
+  // 무료 AI 분석 사용 횟수 (결제가 켜졌을 때만 센다). 서버 전환 후에는 서버 값이 기준.
+  static const _kFreeAnalyses = 'free_analyses_used';
+  int get freeAnalysesUsed => _prefs.getInt(_kFreeAnalyses) ?? 0;
+  Future<void> setFreeAnalysesUsed(int n) => _prefs.setInt(_kFreeAnalyses, n);
+
   // 끼니 알림
   static const _kReminders = 'meal_reminders';
   List<MealReminder> get reminders {
