@@ -11,6 +11,7 @@ import 'repositories/food_analysis_repository.dart';
 import 'repositories/food_catalog_repository.dart';
 import 'repositories/meal_repository.dart';
 import 'repositories/settings_repository.dart';
+import 'services/photo_store.dart';
 import 'services/reminder_service.dart';
 
 // ───────── 저장소 ─────────
@@ -206,13 +207,29 @@ class MealActions {
   }
 
   Future<void> delete(int id) async {
+    final photo = (await _repo.all())
+        .where((r) => r.id == id)
+        .firstOrNull
+        ?.imagePath;
     await _repo.delete(id);
     _refresh();
+    await _deletePhotoIfUnused(photo);
   }
 
   Future<void> deleteAll() async {
+    final photos = {for (final r in await _repo.all()) r.imagePath};
     await _repo.deleteAll();
     _refresh();
+    for (final p in photos) {
+      await PhotoStore.delete(p);
+    }
+  }
+
+  /// 같은 사진을 쓰는 다른 기록이 없을 때만 지운다 (한 사진에 음식 여러 개)
+  Future<void> _deletePhotoIfUnused(String? photo) async {
+    if (photo == null) return;
+    if ((await _repo.all()).any((r) => r.imagePath == photo)) return;
+    await PhotoStore.delete(photo);
   }
 }
 

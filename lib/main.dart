@@ -5,11 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'data/providers.dart';
+import 'data/services/photo_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko');
   final prefs = await SharedPreferences.getInstance();
+  await PhotoStore.init();
 
   runApp(
     ProviderScope(

@@ -11,6 +11,7 @@ import '../../core/meal_type.dart';
 import '../../data/models/analysis_result.dart';
 import '../../data/models/food_record.dart';
 import '../../data/providers.dart';
+import '../../data/services/photo_store.dart';
 import '../../shared/widgets/pickers.dart';
 import '../../shared/widgets/calorie_ring.dart';
 import '../../shared/widgets/input_dialog.dart';
@@ -86,7 +87,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             fat: _s(_fat),
             servings: _servings,
             source: RecordSource.ai,
-            imagePath: widget.args.imagePath,
+            imagePath: await PhotoStore.keep(widget.args.imagePath),
             description: _result.description,
           ),
         );

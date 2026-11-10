@@ -28,7 +28,7 @@ abstract final class Routes {
   static const capture = '/capture';
   static const result = '/result';
 
-  /// 검색·직접 입력으로 기록. `?meal=lunch&date=2026-11-09`
+  /// 검색·직접 입력으로 기록. `?meal=lunch&date=2026-11-09&photo=/path.jpg`
   static const add = '/add';
 
   /// 프리미엄 구독. `?source=limit&feature=csvExport`
@@ -88,6 +88,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               date: date != null && DateTime.tryParse(date) != null
                   ? date
                   : null,
+              photoPath: q['photo'],
             ),
           );
         },

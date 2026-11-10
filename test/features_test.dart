@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +11,7 @@ import 'package:snap_cal/data/repositories/body_log_repository.dart';
 import 'package:snap_cal/data/repositories/food_catalog_repository.dart';
 import 'package:snap_cal/data/repositories/settings_repository.dart';
 import 'package:snap_cal/data/services/export_service.dart';
+import 'package:snap_cal/data/services/photo_store.dart';
 
 FoodRecord rec(
   String name, {
@@ -161,6 +164,39 @@ void main() {
       ]);
       expect(s.reminders.single.timeLabel, '07:05');
       expect(s.reminders.single.enabled, isTrue);
+    });
+  });
+
+  group('사진 보관', () {
+    late Directory tmp;
+    setUp(
+      () async => tmp = await Directory.systemTemp.createTemp('snapcal_photos'),
+    );
+    tearDown(() async {
+      PhotoStore.debugSetDirectory(null);
+      await tmp.delete(recursive: true);
+    });
+
+    test('보관 폴더로 복사하고 상대 경로로 저장, 지우면 파일도 사라진다', () async {
+      PhotoStore.debugSetDirectory(tmp);
+      final src = File('${tmp.path}/picked.jpg')..writeAsBytesSync([1, 2, 3]);
+
+      final stored = await PhotoStore.keep(src.path);
+      expect(stored, startsWith('meal_photos/'));
+      final file = File(PhotoStore.resolve(stored)!);
+      expect(file.readAsBytesSync(), [1, 2, 3]);
+
+      await PhotoStore.delete(stored);
+      expect(file.existsSync(), isFalse);
+    });
+
+    test('예전 기록의 절대 경로는 그대로 쓰고, 지우지 않는다', () async {
+      PhotoStore.debugSetDirectory(tmp);
+      final old = File('${tmp.path}/old.jpg')..writeAsBytesSync([9]);
+      expect(PhotoStore.resolve(old.path), old.path);
+      await PhotoStore.delete(old.path);
+      expect(old.existsSync(), isTrue);
+      expect(PhotoStore.resolve(null), isNull);
     });
   });
 }

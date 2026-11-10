@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snap_cal/app/app.dart';
@@ -111,7 +112,7 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('음식 촬영'));
     await tester.pumpAndSettle();
-    expect(find.text('무료 분석을 모두 썼어요 · 검색으로 직접 기록할 수 있어요'), findsOneWidget);
+    expect(find.text('무료 분석을 모두 썼어요 · 사진과 함께 직접 기록할 수 있어요'), findsOneWidget);
 
     await tester.tap(find.text('앨범'));
     await tester.pumpAndSettle();
@@ -182,7 +183,8 @@ void main() {
     expect(find.text('오늘의 식사'), findsOneWidget);
   });
 
-  testWidgets('무료 분석을 다 쓰면 페이월에서 "직접 기록"으로 검색 화면에 간다', (tester) async {
+  testWidgets('무료 분석을 다 쓰면: 사진은 찍고 AI 없이 검색해서 기록, 사진이 기록에 붙는다', (tester) async {
+    ImagePickerPlatform.instance = FakePicker('/tmp/snapcal_test_meal.jpg');
     final c = await pumpApp(tester, {
       'onboarded': true,
       'free_analyses_used': 3,
@@ -192,10 +194,25 @@ void main() {
     await tester.tap(find.text('앨범'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('AI 없이 검색해서 직접 기록하기'));
+    await tester.tap(find.text('AI 없이 사진과 함께 직접 기록하기'));
     await tester.pumpAndSettle();
     expect(find.text('음식 추가'), findsOneWidget);
-    expect(c.read(accessLevelProvider), AccessLevel.free);
+    expect(find.text('사진과 함께 기록해요'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'ㄱㅊㅉㄱ');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('김치찌개').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('에 추가'));
+    await tester.pumpAndSettle();
+
+    final saved = (await c.read(mealRepositoryProvider).all()).single;
+    expect(saved.foodName, '김치찌개');
+    expect(
+      saved.imagePath,
+      '/tmp/snapcal_test_meal.jpg',
+    ); // 시험 환경엔 보관 폴더가 없어 원래 경로
+    expect(c.read(freeAnalysesUsedProvider), 3); // AI를 안 썼으니 횟수 그대로
   });
 
   testWidgets('잠긴 기능의 페이월에는 "직접 기록" 버튼이 없다', (tester) async {
@@ -205,6 +222,18 @@ void main() {
     await tester.tap(find.text('프리미엄 시작하기'));
     await tester.pumpAndSettle();
     expect(find.text('스냅칼 프리미엄'), findsOneWidget);
-    expect(find.text('AI 없이 검색해서 직접 기록하기'), findsNothing);
+    expect(find.text('AI 없이 사진과 함께 직접 기록하기'), findsNothing);
   });
+}
+
+/// 고르면 항상 같은 사진을 돌려주는 가짜 사진 선택기
+class FakePicker extends ImagePickerPlatform {
+  FakePicker(this.path);
+  final String path;
+
+  @override
+  Future<XFile?> getImageFromSource({
+    required ImageSource source,
+    ImagePickerOptions options = const ImagePickerOptions(),
+  }) async => XFile(path);
 }

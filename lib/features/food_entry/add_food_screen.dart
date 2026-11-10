@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,7 @@ import '../../data/models/food_item.dart';
 import '../../data/models/food_record.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/food_catalog_repository.dart';
+import '../../data/services/photo_store.dart';
 import '../../shared/widgets/calorie_ring.dart';
 import '../../shared/widgets/number_field.dart';
 import '../../shared/widgets/pickers.dart';
@@ -22,8 +25,11 @@ final _catalogProvider = FutureProvider<List<FoodItem>>(
 
 /// 검색해서 기록하기. 사진 없이 기록하거나, 최근에 먹은 음식을 한 번에 다시 넣는다.
 class AddFoodScreen extends ConsumerStatefulWidget {
-  const AddFoodScreen({super.key, this.presetMeal, this.date});
+  const AddFoodScreen({super.key, this.presetMeal, this.date, this.photoPath});
   final String? presetMeal;
+
+  /// AI 없이 찍은 사진. 있으면 이 화면에서 기록하는 음식에 붙인다.
+  final String? photoPath;
 
   /// 기록할 날짜 (yyyy-MM-dd). 없으면 오늘.
   final String? date;
@@ -53,7 +59,15 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     super.dispose();
   }
 
+  /// 보관 폴더에 복사한 사진 경로 (한 번만 복사)
+  String? _keptPhoto;
+
   Future<void> _save(FoodRecord record) async {
+    final photo = widget.photoPath;
+    if (photo != null) {
+      _keptPhoto ??= await PhotoStore.keep(photo);
+      record = record.copyWith(imagePath: _keptPhoto);
+    }
     await ref.read(mealActionsProvider).add(record);
     HapticFeedback.mediumImpact();
     if (!mounted) return;
@@ -101,7 +115,6 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       fat: r.fat,
       servings: r.servings,
       source: r.source,
-      imagePath: r.imagePath,
     ),
   );
 
@@ -134,6 +147,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       ),
       body: Column(
         children: [
+          if (widget.photoPath != null) _PhotoBanner(path: widget.photoPath!),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpace.screen,
@@ -619,6 +633,65 @@ class _NutritionLine extends StatelessWidget {
           cell('단백질', '${protein}g', p.protein),
           cell('지방', '${fat}g', p.fat),
         ],
+      ),
+    );
+  }
+}
+
+/// AI 없이 찍은 사진: 이 사진과 함께 기록된다는 안내
+class _PhotoBanner extends StatelessWidget {
+  const _PhotoBanner({required this.path});
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.screen,
+        0,
+        AppSpace.screen,
+        AppSpace.sm,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpace.sm),
+        decoration: BoxDecoration(
+          color: p.surfaceAlt,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              child: Image.file(
+                File(path),
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+                cacheWidth: 156,
+                errorBuilder: (_, _, _) => Container(
+                  width: 52,
+                  height: 52,
+                  color: p.border,
+                  child: Icon(Icons.photo_rounded, color: p.text3),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('사진과 함께 기록해요', style: AppText.label),
+                  Text(
+                    '음식을 검색하거나 직접 입력해 주세요',
+                    style: AppText.caption.copyWith(color: p.text2),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

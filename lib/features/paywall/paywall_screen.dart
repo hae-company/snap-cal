@@ -18,7 +18,7 @@ enum PaywallResult {
   /// 구독(또는 복원)함
   subscribed,
 
-  /// "AI 없이 검색해서 기록하기"를 고름
+  /// "AI 없이 직접 기록하기"를 고름
   manualEntry,
   closed,
 }
@@ -279,7 +279,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 ? null
                 : () => context.pop(PaywallResult.manualEntry),
             icon: const Icon(Icons.search_rounded, size: 18),
-            label: const Text('AI 없이 검색해서 직접 기록하기'),
+            label: const Text('AI 없이 사진과 함께 직접 기록하기'),
             style: TextButton.styleFrom(foregroundColor: Colors.white),
           ),
         Text(

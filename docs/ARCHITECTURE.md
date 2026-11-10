@@ -221,6 +221,7 @@ sequenceDiagram
 | 키 | 형식 | 내용 |
 |---|---|---|
 | `food_records` | JSON 배열 | 식단 기록 (`FoodRecord`: 날짜, 끼니, 음식, 칼로리·탄단지, 인분, 출처, 사진 경로) |
+| (파일) `문서 폴더/meal_photos/` | JPG | 기록에 붙은 음식 사진. 기록에는 `meal_photos/xxx.jpg` 상대 경로만 저장 (iOS 업데이트로 앱 폴더 경로가 바뀌어도 유지). 기록을 지우면 사진도 지움 |
 | `daily_goal`, `carbs_goal`, `protein_goal`, `fat_goal` | 정수 | 하루 목표 |
 | `water_log` | JSON 객체 | 날짜 → 마신 물(ml) |
 | `water_goal` | 정수 | 물 목표 (기본 2,000ml) |

@@ -58,10 +58,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   }
 
   /// 사진 대신 검색해서 기록 (끼니·날짜는 그대로)
-  void _goSearch() => context.pushReplacement(
+  /// 검색해서 기록 (끼니·날짜는 그대로). [photo]가 있으면 그 사진을 붙인다.
+  void _goSearch([String? photo]) => context.pushReplacement(
     Uri(
       path: Routes.add,
-      queryParameters: {'meal': ?widget.presetMeal, 'date': ?widget.date},
+      queryParameters: {
+        'meal': ?widget.presetMeal,
+        'date': ?widget.date,
+        'photo': ?photo,
+      },
     ).toString(),
   );
 
@@ -75,10 +80,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     // 무료 체험을 다 썼으면 페이월. 구독하면 계속, "직접 기록"을 고르면 검색 화면으로.
     final gate = await ensureAnalysisQuota(context, ref);
     if (!mounted) return;
-    if (gate == AnalysisGate.manualEntry) return _goSearch();
     if (gate == AnalysisGate.stop) return;
     final picked = await _pickImage(source);
     if (picked == null || !mounted) return;
+    // AI 없이: 사진만 붙여서 검색·직접 입력으로
+    if (gate == AnalysisGate.manualEntry) return _goSearch(picked.path);
 
     setState(() => _analyzingPath = picked.path);
     try {
@@ -517,7 +523,7 @@ class _FreeQuotaChip extends ConsumerWidget {
           child: Text(
             remaining > 0
                 ? '무료 분석 $remaining회 남음 · 프리미엄은 무제한'
-                : '무료 분석을 모두 썼어요 · 검색으로 직접 기록할 수 있어요',
+                : '무료 분석을 모두 썼어요 · 사진과 함께 직접 기록할 수 있어요',
             style: AppText.micro.copyWith(fontSize: 12, color: AppBrand.spark),
           ),
         ),

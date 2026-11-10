@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart';
 import '../../app/theme/tokens.dart';
 import '../../core/meal_type.dart';
 import '../../data/models/food_record.dart';
+import '../../data/services/photo_store.dart';
 import '../meal_style.dart';
 import 'calorie_ring.dart';
 
@@ -319,11 +320,12 @@ class FoodThumbnail extends StatelessWidget {
       ),
       child: Icon(Icons.rice_bowl_rounded, size: size * 0.46, color: p.text3),
     );
-    if (path == null) return placeholder;
+    final file = PhotoStore.resolve(path);
+    if (file == null) return placeholder;
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.control),
       child: Image.file(
-        File(path!),
+        File(file),
         width: size,
         height: size,
         fit: BoxFit.cover,
