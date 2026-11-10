@@ -1,16 +1,26 @@
 # 구독 결제 켜는 방법
 
-결제 코드는 이미 앱에 들어 있습니다. **빌드할 때 모드만 바꾸면** 실제 결제로 동작합니다.
+결제는 **기본으로 켜져 있습니다.**
 
-| 모드 | 빌드 옵션 | 동작 |
-|---|---|---|
-| 결제 꺼짐 (기본) | 없음 | 모든 기능 무료. 페이월은 "출시 준비 중" 미리보기 |
-| 가짜 결제 | `--dart-define=BILLING=mock` | 실제 돈 없이 체험·구독·복원·잠금 흐름 시험. MY에 "구독·무료 횟수 초기화" 버튼 |
-| 실제 결제 | `--dart-define=BILLING=revenuecat` + 키 | RevenueCat으로 App Store / Google Play 결제 |
+| 빌드 | 옵션 없이 빌드하면 |
+|---|---|
+| 개발 빌드 (`flutter run`) | **가짜 결제**: 무료 3회 제한, 페이월, 체험·구독·복원이 실제 돈 없이 동작. MY에 "구독·무료 횟수 초기화" 버튼 |
+| 출시 빌드 (`--release`) | RevenueCat 키가 있으면 **실제 결제**, 없으면 꺼짐(모든 기능 무료). 가짜 결제는 출시 빌드에서 쓰지 않음 |
+
+직접 고르려면 `--dart-define=BILLING=off | mock | revenuecat`.
+
+| 모드 | 동작 |
+|---|---|
+| `off` | 모든 기능 무료. 페이월은 "출시 준비 중" 미리보기 |
+| `mock` | 가짜 결제 (개발 빌드 기본값) |
+| `revenuecat` | RevenueCat으로 App Store / Google Play 결제 (키 필요) |
 
 ```bash
-# 가짜 결제로 흐름 확인
-flutter run --dart-define=BILLING=mock
+# 개발: 옵션 없이 실행하면 가짜 결제 + 테스트 광고
+flutter run
+
+# 결제를 끄고(모두 무료) 실행
+flutter run --dart-define=BILLING=off
 
 # 실제 결제
 flutter run --dart-define=BILLING=revenuecat \

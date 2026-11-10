@@ -7,6 +7,7 @@ import 'package:image_picker_platform_interface/image_picker_platform_interface.
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snap_cal/app/app.dart';
+import 'package:snap_cal/app/config.dart';
 import 'package:snap_cal/core/date_key.dart';
 import 'package:snap_cal/data/ads/rewarded_ads.dart';
 import 'package:snap_cal/data/billing/billing_models.dart';
@@ -22,6 +23,7 @@ Future<ProviderContainer> pumpApp(
   WidgetTester tester,
   Map<String, Object> prefs, {
   bool mock = true,
+  RewardedAdService? ads,
   List<dynamic> extra = const [],
 }) async {
   tester.view.physicalSize = const Size(1170, 2532);
@@ -33,8 +35,10 @@ Future<ProviderContainer> pumpApp(
   final c = ProviderContainer(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(sp),
-      if (mock)
-        billingServiceProvider.overrideWithValue(MockBillingService(sp)),
+      billingServiceProvider.overrideWithValue(
+        mock ? MockBillingService(sp) : DisabledBillingService(),
+      ),
+      rewardedAdsProvider.overrideWithValue(ads ?? DisabledRewardedAds()),
       ...extra.cast(),
     ],
   );
@@ -58,6 +62,27 @@ Future<void> scrollTo(WidgetTester tester, Finder finder) async {
 
 void main() {
   setUpAll(() => initializeDateFormatting('ko'));
+
+  group('기본 모드 (켜짐이 기본)', () {
+    test('개발 빌드: 가짜 결제 + 테스트 광고', () {
+      expect(resolveBilling('', release: false, hasKeys: false), 'mock');
+      expect(resolveAds('', release: false, hasAdUnits: false), 'test');
+    });
+    test('출시 빌드: 키·광고 ID가 있으면 실제, 없으면 꺼짐', () {
+      expect(resolveBilling('', release: true, hasKeys: true), 'revenuecat');
+      expect(resolveBilling('', release: true, hasKeys: false), 'off');
+      expect(resolveAds('', release: true, hasAdUnits: true), 'on');
+      expect(resolveAds('', release: true, hasAdUnits: false), 'off');
+    });
+    test('출시 빌드에서는 가짜 결제를 쓰지 않는다', () {
+      expect(resolveBilling('mock', release: true, hasKeys: false), 'off');
+      expect(
+        resolveBilling('revenuecat', release: true, hasKeys: true),
+        'revenuecat',
+      );
+      expect(resolveBilling('OFF', release: false, hasKeys: false), 'off');
+    });
+  });
 
   group('결제 로직', () {
     test('결제 모드 읽기: 모르는 값은 결제 꺼짐', () {
@@ -269,10 +294,8 @@ void main() {
     final c = await pumpApp(
       tester,
       {'onboarded': true, 'free_analyses_used': 3},
-      extra: [
-        rewardedAdsProvider.overrideWithValue(ads),
-        foodAnalysisRepositoryProvider.overrideWithValue(FakeAnalysis()),
-      ],
+      ads: ads,
+      extra: [foodAnalysisRepositoryProvider.overrideWithValue(FakeAnalysis())],
     );
     await tester.tap(find.bySemanticsLabel('음식 촬영'));
     await tester.pumpAndSettle();
@@ -294,11 +317,10 @@ void main() {
 
   testWidgets('광고를 중간에 닫으면 보상이 없다', (tester) async {
     final ads = FakeRewardedAds(outcome: RewardOutcome.cancelled);
-    final c = await pumpApp(
-      tester,
-      {'onboarded': true, 'free_analyses_used': 3},
-      extra: [rewardedAdsProvider.overrideWithValue(ads)],
-    );
+    final c = await pumpApp(tester, {
+      'onboarded': true,
+      'free_analyses_used': 3,
+    }, ads: ads);
     await tester.tap(find.bySemanticsLabel('음식 촬영'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('앨범'));
@@ -312,16 +334,12 @@ void main() {
   });
 
   testWidgets('오늘 한도를 다 쓰거나 광고가 꺼져 있으면 광고 버튼이 없다', (tester) async {
-    await pumpApp(
-      tester,
-      {
-        'onboarded': true,
-        'free_analyses_used': 3,
-        'ad_reward_day': dateKey(DateTime.now()),
-        'ad_reward_count': 2,
-      },
-      extra: [rewardedAdsProvider.overrideWithValue(FakeRewardedAds())],
-    );
+    await pumpApp(tester, {
+      'onboarded': true,
+      'free_analyses_used': 3,
+      'ad_reward_day': dateKey(DateTime.now()),
+      'ad_reward_count': 2,
+    }, ads: FakeRewardedAds());
     await tester.tap(find.bySemanticsLabel('음식 촬영'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('앨범'));

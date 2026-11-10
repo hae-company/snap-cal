@@ -18,6 +18,9 @@ import 'package:snap_cal/app/router.dart';
 import 'package:snap_cal/core/date_key.dart';
 import 'package:snap_cal/data/models/analysis_result.dart';
 import 'package:snap_cal/data/models/food_record.dart';
+import 'package:snap_cal/data/ads/rewarded_ads.dart';
+import 'package:snap_cal/data/billing/billing_providers.dart';
+import 'package:snap_cal/data/billing/billing_service.dart';
 import 'package:snap_cal/data/providers.dart';
 import 'package:snap_cal/features/capture/result_screen.dart';
 
@@ -131,7 +134,11 @@ void main() {
       });
       final sp = await SharedPreferences.getInstance();
       final c = ProviderContainer(
-        overrides: [sharedPreferencesProvider.overrideWithValue(sp)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(sp),
+          billingServiceProvider.overrideWithValue(DisabledBillingService()),
+          rewardedAdsProvider.overrideWithValue(DisabledRewardedAds()),
+        ],
       );
       addTearDown(c.dispose);
       final key = GlobalKey();

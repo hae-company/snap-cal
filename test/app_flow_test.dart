@@ -7,6 +7,9 @@ import 'package:snap_cal/app/app.dart';
 import 'package:snap_cal/app/theme/tokens.dart';
 import 'package:snap_cal/core/date_key.dart';
 import 'package:snap_cal/data/models/food_record.dart';
+import 'package:snap_cal/data/ads/rewarded_ads.dart';
+import 'package:snap_cal/data/billing/billing_providers.dart';
+import 'package:snap_cal/data/billing/billing_service.dart';
 import 'package:snap_cal/data/providers.dart';
 import 'package:snap_cal/data/repositories/settings_repository.dart';
 import 'package:snap_cal/data/services/reminder_service.dart';
@@ -26,6 +29,9 @@ Future<ProviderContainer> pumpApp(
   final container = ProviderContainer(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(sp),
+      // 이 파일은 결제·광고가 꺼진 상태(모든 기능 무료)를 가정한다
+      billingServiceProvider.overrideWithValue(DisabledBillingService()),
+      rewardedAdsProvider.overrideWithValue(DisabledRewardedAds()),
       ...overrides.cast(),
     ],
   );
