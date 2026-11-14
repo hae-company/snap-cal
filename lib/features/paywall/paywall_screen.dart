@@ -97,6 +97,82 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     }
   }
 
+  /// 광고 전용 모드의 "무료 분석을 다 썼어요" 화면
+  Widget _adsOnly(BuildContext context) {
+    final p = context.palette;
+    final canWatch = ref.watch(canWatchAdProvider);
+    final today = ref.watch(adRewardsProvider).today;
+    return Scaffold(
+      backgroundColor: p.bg,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.xl,
+            0,
+            AppSpace.xl,
+            AppSpace.md,
+          ),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: _busy
+                      ? null
+                      : () => context.pop(PaywallResult.closed),
+                  tooltip: '닫기',
+                  icon: Icon(Icons.close_rounded, color: p.text2),
+                ),
+              ),
+              const Spacer(),
+              const LogoTile(size: 88),
+              const SizedBox(height: AppSpace.lg),
+              Text(
+                canWatch ? '무료 분석을 다 썼어요' : '오늘 받을 수 있는 분석을 다 썼어요',
+                textAlign: TextAlign.center,
+                style: AppText.title1,
+              ),
+              const SizedBox(height: AppSpace.xs),
+              Text(
+                canWatch
+                    ? '짧은 광고를 끝까지 보면 AI 분석 1회를 드려요.\n하루 $dailyAdRewardLimit회까지 받을 수 있어요.'
+                    : '내일 다시 광고로 $dailyAdRewardLimit회 받을 수 있어요.\n지금은 사진과 함께 직접 기록해 주세요.',
+                textAlign: TextAlign.center,
+                style: AppText.body.copyWith(color: p.text2),
+              ),
+              const Spacer(),
+              if (canWatch) ...[
+                FilledButton.icon(
+                  onPressed: _busy ? null : _watchAd,
+                  icon: _busy
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.play_circle_rounded),
+                  label: Text('광고 보고 1회 더 받기 (오늘 $today/$dailyAdRewardLimit)'),
+                ),
+                const SizedBox(height: AppSpace.sm),
+              ],
+              OutlinedButton.icon(
+                onPressed: _busy
+                    ? null
+                    : () => context.pop(PaywallResult.manualEntry),
+                icon: Icon(Icons.search_rounded, color: p.brand),
+                label: const Text('AI 없이 사진과 함께 직접 기록하기'),
+              ),
+              const SizedBox(height: AppSpace.xs),
+              Text(
+                '음식 검색과 직접 입력은 언제나 무료예요',
+                style: AppText.caption.copyWith(color: p.text3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _restore() async {
     setState(() => _busy = true);
     final e = await ref.read(entitlementProvider.notifier).restore();
@@ -113,6 +189,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     final mode = ref.watch(billingServiceProvider).mode;
+    // 광고 전용 모드: 구독 판매 없이 광고·직접 기록만 안내
+    if (ref.watch(accessLevelProvider) == AccessLevel.adSupported) {
+      return _adsOnly(context);
+    }
     final plans = ref.watch(_plansProvider);
 
     return Theme(

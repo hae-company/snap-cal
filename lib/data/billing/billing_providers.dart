@@ -65,17 +65,30 @@ final entitlementProvider =
 
 /// 지금 사용자가 쓸 수 있는 범위
 enum AccessLevel {
-  /// 결제 준비 중: 모든 기능 무료
+  /// 결제·광고 모두 꺼짐: 모든 기능 무제한 무료
   open,
+
+  /// 광고 전용 모드 (구독 판매 없음, 사업자 없이 출시할 때):
+  /// 기능은 모두 열려 있고, AI 분석만 무료 3회 + 광고 보상으로 제한
+  adSupported,
+
+  /// 구독 모드의 무료 사용자
   free,
   premium;
 
+  /// 체중 그래프·CSV 같은 프리미엄 기능을 쓸 수 있는지
   bool get unlocked => this != free;
+
+  /// AI 분석 횟수를 세는지 (무료 3회 + 광고 보상)
+  bool get analysisLimited => this == free || this == adSupported;
 }
 
 final accessLevelProvider = Provider<AccessLevel>((ref) {
   if (!ref.watch(billingServiceProvider).mode.enforcesPremium) {
-    return AccessLevel.open;
+    // 구독은 없지만 광고가 켜져 있으면 광고 전용 모드
+    return ref.watch(rewardedAdsProvider).mode.enabled
+        ? AccessLevel.adSupported
+        : AccessLevel.open;
   }
   final premium = ref.watch(entitlementProvider).value?.premium ?? false;
   return premium ? AccessLevel.premium : AccessLevel.free;
@@ -89,7 +102,7 @@ class FreeAnalysesNotifier extends Notifier<int> {
   /// 분석에 성공했을 때 한 번 센다 (무료 사용자만).
   /// 무료 체험을 먼저 쓰고, 다 쓴 뒤에는 광고로 받은 횟수를 쓴다.
   Future<void> recordUse() async {
-    if (ref.read(accessLevelProvider) != AccessLevel.free) return;
+    if (!ref.read(accessLevelProvider).analysisLimited) return;
     if (state < freeAnalysisLimit) {
       state = state + 1;
       await ref.read(settingsRepositoryProvider).setFreeAnalysesUsed(state);
@@ -166,13 +179,13 @@ final adsWarmupProvider = FutureProvider<void>((ref) async {
 /// 지금 광고를 보고 분석 1회를 받을 수 있는지 (광고 켜짐 + 무료 사용자 + 오늘 한도 안)
 final canWatchAdProvider = Provider<bool>((ref) {
   if (!ref.watch(rewardedAdsProvider).mode.enabled) return false;
-  if (ref.watch(accessLevelProvider) != AccessLevel.free) return false;
+  if (!ref.watch(accessLevelProvider).analysisLimited) return false;
   return ref.watch(adRewardsProvider).today < dailyAdRewardLimit;
 });
 
 /// 무료 사용자에게 남은 AI 분석 횟수 (체험 + 광고 보너스). 무제한이면 null.
 final remainingFreeAnalysesProvider = Provider<int?>((ref) {
-  if (ref.watch(accessLevelProvider) != AccessLevel.free) return null;
+  if (!ref.watch(accessLevelProvider).analysisLimited) return null;
   final int used = ref.watch(freeAnalysesUsedProvider);
   final trial = freeAnalysisLimit - used;
   return (trial < 0 ? 0 : trial) + ref.watch(adRewardsProvider).bonus;

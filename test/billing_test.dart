@@ -347,6 +347,90 @@ void main() {
     expect(find.textContaining('광고 보고'), findsNothing);
     expect(find.text('AI 없이 사진과 함께 직접 기록하기'), findsOneWidget);
   });
+
+  group('광고 전용 모드 (구독 없음, 사업자 없이 출시)', () {
+    test('출시 빌드에 결제 키는 없고 광고 ID만 있으면 광고 전용 모드가 된다', () {
+      expect(resolveBilling('', release: true, hasKeys: false), 'off');
+      expect(resolveAds('', release: true, hasAdUnits: true), 'on');
+    });
+
+    testWidgets('기능은 모두 열려 있고, 구독 버튼이 없다', (tester) async {
+      final c = await pumpApp(
+        tester,
+        {
+          'onboarded': true,
+          'weight_log':
+              '{"2026-11-01": 66.0, "${dateKey(DateTime.now())}": 65.2}',
+        },
+        mock: false,
+        ads: FakeRewardedAds(),
+      );
+      expect(c.read(accessLevelProvider), AccessLevel.adSupported);
+      expect(c.read(remainingFreeAnalysesProvider), 3);
+
+      await tester.tap(find.text('리포트'));
+      await tester.pumpAndSettle();
+      expect(find.text('프리미엄으로 보기'), findsNothing); // 체중 그래프 잠금 없음
+
+      await tester.tap(find.text('MY'));
+      await tester.pumpAndSettle();
+      expect(find.text('무료로 이용 중'), findsOneWidget);
+      expect(find.text('프리미엄 시작하기'), findsNothing);
+      expect(find.text('구매 복원'), findsNothing);
+    });
+
+    testWidgets('3회를 다 쓰면 광고 화면이 뜨고, 보면 바로 분석한다', (tester) async {
+      ImagePickerPlatform.instance = FakePicker('/tmp/caloriesnap_adsonly.jpg');
+      final ads = FakeRewardedAds();
+      final c = await pumpApp(
+        tester,
+        {'onboarded': true, 'free_analyses_used': 3},
+        mock: false,
+        ads: ads,
+        extra: [
+          foodAnalysisRepositoryProvider.overrideWithValue(FakeAnalysis()),
+        ],
+      );
+      await tester.tap(find.bySemanticsLabel('음식 촬영'));
+      await tester.pumpAndSettle();
+      expect(find.text('무료 분석을 모두 썼어요 · 광고 보고 1회 더 받기'), findsOneWidget);
+
+      await tester.tap(find.text('앨범'));
+      await tester.pumpAndSettle();
+      expect(find.text('무료 분석을 다 썼어요'), findsOneWidget);
+      expect(find.textContaining('무료로 시작하기'), findsNothing); // 구독 없음
+      expect(find.text('AI 없이 사진과 함께 직접 기록하기'), findsOneWidget);
+
+      await tester.tap(find.text('광고 보고 1회 더 받기 (오늘 0/2)'));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(ads.shown, 1);
+      expect(find.text('김치찌개'), findsOneWidget);
+      expect(c.read(adRewardsProvider).today, 1);
+    });
+
+    testWidgets('오늘 광고 보상을 다 받으면 직접 기록만 안내한다', (tester) async {
+      await pumpApp(
+        tester,
+        {
+          'onboarded': true,
+          'free_analyses_used': 3,
+          'ad_reward_day': dateKey(DateTime.now()),
+          'ad_reward_count': 2,
+        },
+        mock: false,
+        ads: FakeRewardedAds(),
+      );
+      await tester.tap(find.bySemanticsLabel('음식 촬영'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('앨범'));
+      await tester.pumpAndSettle();
+      expect(find.text('오늘 받을 수 있는 분석을 다 썼어요'), findsOneWidget);
+      expect(find.textContaining('광고 보고'), findsNothing);
+      expect(find.text('AI 없이 사진과 함께 직접 기록하기'), findsOneWidget);
+    });
+  });
 }
 
 class FakeAnalysis implements FoodAnalysisRepository {

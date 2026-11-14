@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -32,6 +33,10 @@ class PremiumCard extends ConsumerWidget {
       AccessLevel.premium => (
         entitlement.inTrial ? '프리미엄 무료 체험 중' : '프리미엄 이용 중',
         _expiryText(entitlement),
+      ),
+      AccessLevel.adSupported => (
+        '무료로 이용 중',
+        'AI 분석 $remaining회 남음 · 광고를 보면 하루 $dailyAdRewardLimit회 더 받을 수 있어요',
       ),
       AccessLevel.free => (
         '무료 이용 중',
@@ -80,8 +85,10 @@ class PremiumCard extends ConsumerWidget {
                     gradient: AppBrand.gradient,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.workspace_premium_rounded,
+                  child: Icon(
+                    access == AccessLevel.adSupported
+                        ? Icons.auto_awesome_rounded
+                        : Icons.workspace_premium_rounded,
                     color: Colors.white,
                     size: 20,
                   ),
@@ -101,40 +108,46 @@ class PremiumCard extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpace.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: access == AccessLevel.premium
-                      ? OutlinedButton(
-                          onPressed: manage,
-                          child: const Text('구독 관리'),
-                        )
-                      : FilledButton(
-                          onPressed: () => openPaywall(context),
-                          child: Text(
-                            access == AccessLevel.open ? '미리보기' : '프리미엄 시작하기',
+            if (access != AccessLevel.adSupported) ...[
+              const SizedBox(height: AppSpace.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: access == AccessLevel.premium
+                        ? OutlinedButton(
+                            onPressed: manage,
+                            child: const Text('구독 관리'),
+                          )
+                        : FilledButton(
+                            onPressed: () => openPaywall(context),
+                            child: Text(
+                              access == AccessLevel.open ? '미리보기' : '프리미엄 시작하기',
+                            ),
                           ),
-                        ),
-                ),
-                if (access != AccessLevel.open) ...[
-                  const SizedBox(width: AppSpace.xs),
-                  TextButton(onPressed: restore, child: const Text('구매 복원')),
+                  ),
+                  if (access != AccessLevel.open) ...[
+                    const SizedBox(width: AppSpace.xs),
+                    TextButton(onPressed: restore, child: const Text('구매 복원')),
+                  ],
                 ],
-              ],
-            ),
-            if (billing is MockBillingService) ...[
+              ),
+            ],
+            // 개발 빌드에서만: 시험용 초기화
+            if (billing is MockBillingService ||
+                (kDebugMode && access == AccessLevel.adSupported)) ...[
               const SizedBox(height: AppSpace.xs),
               TextButton.icon(
                 onPressed: () async {
-                  await billing.reset();
-                  await ref
-                      .read(settingsRepositoryProvider)
-                      .setFreeAnalysesUsed(0);
+                  if (billing is MockBillingService) await billing.reset();
+                  final repo = ref.read(settingsRepositoryProvider);
+                  await repo.setFreeAnalysesUsed(0);
+                  await repo.setBonusAnalyses(0);
+                  await repo.setAdRewards('', 0);
                   ref.invalidate(freeAnalysesUsedProvider);
+                  ref.invalidate(adRewardsProvider);
                 },
                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                label: const Text('테스트: 구독·무료 횟수 초기화'),
+                label: const Text('테스트: 구독·무료·광고 횟수 초기화'),
               ),
             ],
           ],
